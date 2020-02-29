@@ -15,8 +15,6 @@ int main(int argc, char *argv[])
   if (cpid > 0) {            /* Parent Process */
     mypid = getpid();
     printf("[%d] parent of [%d]\n", mypid, cpid);
-    // usleep(1000);
-    // wait(&status);
     printf("Parent exit\n");
   }  else if (cpid == 0) {       /* Child Process */
     mypid = getpid();
@@ -28,3 +26,6 @@ int main(int argc, char *argv[])
   }
   exit(0);
 }
+
+    // usleep(1000);
+    // wait(&status);

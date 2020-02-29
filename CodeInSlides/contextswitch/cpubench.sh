@@ -40,10 +40,10 @@ echo "$ncpus physical CPUs, $corepercpu cores/CPU,\
  $threadpercore hardware threads/core = $total hw threads total"
 
 runbench() {
-  $* ./timesyscall
+  # $* ./timesyscall
   $* ./timectxsw
   $* ./timetctxsw
-  $* ./timetctxsw2
+  # $* ./timetctxsw2
 }
 
 echo '-- No CPU affinity --'
@@ -57,5 +57,5 @@ lastcpu=`awk </dev/null -v ncpus=$ncpus 'BEGIN {
 }'`
 runbench taskset $lastcpu
 
-echo '-- With CPU affinity to CPU 0 --'
-runbench taskset `sed 's/,//g;s/^/0x/' /sys/bus/node/devices/node0/cpumap`
+# echo '-- With CPU affinity to CPU 0 --'
+# runbench taskset `sed 's/,//g;s/^/0x/' /sys/bus/node/devices/node0/cpumap`

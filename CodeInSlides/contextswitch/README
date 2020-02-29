@@ -1,4 +1,5 @@
 Fork from https://github.com/tsuna/contextswitch
+Read https://blog.tsunanet.net/2010/11/how-long-does-it-take-to-make-context.html for more details
 
 Little micro-benchmarks to assess the performance overhead of context
 switching.
