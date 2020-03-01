@@ -29,10 +29,9 @@ void* Producer(void* args) {
     if(bufSize>BUF_CAPACITY)
       printf("[%ld] producer: OVERFLOW! enqueue a coke, bufSize %d\n",pthread_self(),bufSize);
     // printf("[%ld] producer: enqueue a coke, bufSize %d\n",pthread_self(),bufSize);
-    if(bufSize==1) {
-      // printf("[%ld] producer: wakeup a waiting consumer\n",pthread_self());
-      pthread_cond_broadcast(&cndEmpty);
-    }
+
+    // printf("[%ld] producer: wakeup waiting consumers\n",pthread_self());
+    pthread_cond_broadcast(&cndEmpty);
     pthread_mutex_unlock(&mutex);
   }
 }
@@ -49,10 +48,9 @@ void* Consumer(void* args) {
     if(bufSize<0)
       printf("[%ld] consumer: UNDERFLOW! dequeue a coke, bufSize %d\n",pthread_self(),bufSize);
     // printf("[%ld] consumer: dequeue a coke, bufSize %d\n",pthread_self(),bufSize);
-    if(bufSize==BUF_CAPACITY-1) {
-      // printf("[%ld] consumer: wakeup a waiting producer\n",pthread_self());
-      pthread_cond_broadcast(&cndFull);
-    }
+
+    // printf("[%ld] consumer: wakeup waiting producers\n",pthread_self());
+    pthread_cond_broadcast(&cndFull);
     pthread_mutex_unlock(&mutex);
   }
 }
