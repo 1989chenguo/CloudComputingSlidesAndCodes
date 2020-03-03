@@ -6,11 +6,12 @@
 #include <pthread.h>
 #include <semaphore.h> 
 
-#define TEST_COKE_NUM 100000
+#define IF_PRINT_DEBUG 0
 #define BUF_CAPACITY 10
 
 int producerNum=1;
 int consumerNum=1;
+int TEST_COKE_NUM=100000;
 
 int bufSize=0;
 
@@ -21,9 +22,13 @@ pthread_mutex_t mutex;
 void* Producer(void* args) {
   for(int i=0;i<TEST_COKE_NUM/producerNum;i++)
   {
+    if(IF_PRINT_DEBUG)
+      printf("[%ld] producer: try to enqueue a coke ...\n",pthread_self());
     sem_wait(&emptySlots); 
     pthread_mutex_lock(&mutex);
     bufSize++;
+    if(IF_PRINT_DEBUG)
+      printf("[%ld] producer: enqueue a coke, bufSize %d\n",pthread_self(),bufSize);
     pthread_mutex_unlock(&mutex);
     sem_post(&fullSlots); 
   }
@@ -32,9 +37,13 @@ void* Producer(void* args) {
 void* Consumer(void* args) {
   for(int i=0;i<TEST_COKE_NUM/consumerNum;i++)
   {
+    if(IF_PRINT_DEBUG)
+      printf("[%ld] consumer: try to dequeue a coke ...\n",pthread_self());
     sem_wait(&fullSlots);
     pthread_mutex_lock(&mutex);
     bufSize--;
+    if(IF_PRINT_DEBUG)
+      printf("[%ld] consumer: dequeue a coke, bufSize %d\n",pthread_self(),bufSize);
     pthread_mutex_unlock(&mutex);
     sem_post(&emptySlots); 
   }
@@ -42,10 +51,14 @@ void* Consumer(void* args) {
 
 int main(int argc, char *argv[])
 {
-  if(argc>=2)
+  if(argc>=3)
   {
     producerNum=atoi(argv[1]);
     consumerNum=atoi(argv[2]);
+  }
+  if(argc>=4)
+  {
+    TEST_COKE_NUM=atoi(argv[3]);
   }
 
   sem_init(&fullSlots, 0, 0); 

@@ -5,11 +5,12 @@
 #include <sys/types.h>
 #include <pthread.h>
 
-#define TEST_COKE_NUM 100000
+#define IF_PRINT_DEBUG 0
 #define BUF_CAPACITY 10
 
 int producerNum=1;
 int consumerNum=1;
+int TEST_COKE_NUM=100000;
 
 int bufSize=0;
 
@@ -20,17 +21,21 @@ pthread_cond_t cndEmpty;
 void* Producer(void* args) {
   for(int i=0;i<TEST_COKE_NUM/producerNum;i++)
   {
+    if(IF_PRINT_DEBUG)
+      printf("[%ld] producer: try to enqueue a coke ...\n",pthread_self());
     pthread_mutex_lock(&mutex);
     if(bufSize==BUF_CAPACITY) {
-      // printf("[%ld] producer: wait ...\n",pthread_self());
+      if(IF_PRINT_DEBUG)
+        printf("[%ld] producer: wait ...\n",pthread_self());
       pthread_cond_wait(&cndFull,&mutex);
     }
     bufSize++;
     if(bufSize>BUF_CAPACITY)
-      printf("[%ld] producer: OVERFLOW! enqueue a coke, bufSize %d\n",pthread_self(),bufSize);
-    // printf("[%ld] producer: enqueue a coke, bufSize %d\n",pthread_self(),bufSize);
-
-    // printf("[%ld] producer: wakeup waiting consumers\n",pthread_self());
+      fprintf(stderr,"[%ld] producer: OVERFLOW! enqueue a coke, bufSize %d\n",pthread_self(),bufSize);
+    if(IF_PRINT_DEBUG)
+      printf("[%ld] producer: enqueue a coke, bufSize %d\n",pthread_self(),bufSize);
+    if(IF_PRINT_DEBUG)
+      printf("[%ld] producer: wakeup waiting consumers\n",pthread_self());
     pthread_cond_broadcast(&cndEmpty);
     pthread_mutex_unlock(&mutex);
   }
@@ -39,17 +44,21 @@ void* Producer(void* args) {
 void* Consumer(void* args) {
   for(int i=0;i<TEST_COKE_NUM/consumerNum;i++)
   {
+    if(IF_PRINT_DEBUG)
+      printf("[%ld] consumer: try to dequeue a coke ...\n",pthread_self());
     pthread_mutex_lock(&mutex);
     if(bufSize==0) {
-      // printf("[%ld] consumer: wait ...\n",pthread_self());
+      if(IF_PRINT_DEBUG)
+        printf("[%ld] consumer: wait ...\n",pthread_self());
       pthread_cond_wait(&cndEmpty,&mutex);
     }
     bufSize--;
     if(bufSize<0)
-      printf("[%ld] consumer: UNDERFLOW! dequeue a coke, bufSize %d\n",pthread_self(),bufSize);
-    // printf("[%ld] consumer: dequeue a coke, bufSize %d\n",pthread_self(),bufSize);
-
-    // printf("[%ld] consumer: wakeup waiting producers\n",pthread_self());
+      fprintf(stderr,"[%ld] consumer: UNDERFLOW! dequeue a coke, bufSize %d\n",pthread_self(),bufSize);
+    if(IF_PRINT_DEBUG)
+      printf("[%ld] consumer: dequeue a coke, bufSize %d\n",pthread_self(),bufSize);
+    if(IF_PRINT_DEBUG)
+      printf("[%ld] consumer: wakeup waiting producers\n",pthread_self());
     pthread_cond_broadcast(&cndFull);
     pthread_mutex_unlock(&mutex);
   }
@@ -57,10 +66,14 @@ void* Consumer(void* args) {
 
 int main(int argc, char *argv[])
 {
-  if(argc>=2)
+  if(argc>=3)
   {
     producerNum=atoi(argv[1]);
     consumerNum=atoi(argv[2]);
+  }
+  if(argc>=4)
+  {
+    TEST_COKE_NUM=atoi(argv[3]);
   }
 
   pthread_cond_init(&cndFull,NULL);
