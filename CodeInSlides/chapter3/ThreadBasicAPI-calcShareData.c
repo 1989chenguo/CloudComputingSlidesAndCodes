@@ -102,10 +102,10 @@ int main(int argc, char *argv[])
 //   ThreadParas thPara[numOfWorkerThread];
 //   for(int i=0;i<numOfWorkerThread;i++)
 //   {
-//     int first=int(NUM_ARR_SIZE/numOfWorkerThread)*i;
+//     int first=(int)(NUM_ARR_SIZE/numOfWorkerThread)*i;
 //     int last;
 //     if(i!=numOfWorkerThread-1)
-//       last=int(NUM_ARR_SIZE/numOfWorkerThread)*(i+1);
+//       last=(int)(NUM_ARR_SIZE/numOfWorkerThread)*(i+1);
 //     else
 //       last=NUM_ARR_SIZE;
 //     thPara[i].first=first;
