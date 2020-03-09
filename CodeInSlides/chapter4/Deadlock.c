@@ -118,11 +118,11 @@ int compare (const void * a, const void * b)
   return ( *(int*)a - *(int*)b );
 }
 
-void setResourceNeededAndAccessOrder(ThreadArgs *thPara, int ifRandom)
+void setResourceNeededAndAccessOrder(ThreadArgs *thPara, int ifSortAccess)
 {
   thPara->resourceAccessOrder=malloc((thPara->numOfResourceNeeded)*sizeof(int));
   pickKDifferentIntLessThanN(thPara->numOfResourceNeeded, thPara->totalResourceNum, thPara->resourceAccessOrder);
-  if(ifRandom==0)//ifRandom: 0 all use the same ascending order
+  if(ifSortAccess==1)//ifSortAccess: 1 all use the same ascending order
     qsort(thPara->resourceAccessOrder, thPara->numOfResourceNeeded, sizeof(int), compare);
 }
 
@@ -141,9 +141,9 @@ int main(int argc, char *argv[])
   int ifUseBigLock=0;
   if(argc>4)
     ifUseBigLock=atoi(argv[4]);
-  int ifRandom=1;
+  int ifSortAccess=0;
   if(argc>5)
-    ifRandom=atoi(argv[5]);
+    ifSortAccess=atoi(argv[5]);
 
   srand(time(NULL));
 
@@ -153,11 +153,11 @@ int main(int argc, char *argv[])
   for(int i=0;i<totalResourceNum;i++)
   {
     pthread_mutex_init(&(globalResources[i].mutex),NULL);
-    globalResources[i].processTime=rand()%1000+10000; // from 1ms to 2ms
+    globalResources[i].processTime=rand()%10000+10000; // from 10ms to 20ms
   }
 
-  printf("Ready to run: \t numOfWorkerThread=%d \t totalResourceNum=%d \t resourceNeededPerThread=%d \t ifRandom=%d \t ifUseBigLock=%d\n"
-    , numOfWorkerThread, totalResourceNum, resourceNeededPerThread, ifRandom, ifUseBigLock);
+  printf("Ready to run: \t numOfWorkerThread=%d \t totalResourceNum=%d \t resourceNeededPerThread=%d \t ifUseBigLock=%d \t ifSortAccess=%d\n"
+    , numOfWorkerThread, totalResourceNum, resourceNeededPerThread, ifUseBigLock, ifSortAccess);
   pthread_t th[numOfWorkerThread];
   ThreadArgs thPara[numOfWorkerThread];
   for(int i=0;i<numOfWorkerThread;i++)
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
     thPara[i].threadID=i;
     thPara[i].totalResourceNum=totalResourceNum;
     thPara[i].numOfResourceNeeded=resourceNeededPerThread;
-    setResourceNeededAndAccessOrder(&thPara[i],ifRandom);
+    setResourceNeededAndAccessOrder(&thPara[i],ifSortAccess);
     thPara[i].ifUseBigLock=ifUseBigLock;
     printThreadArgs(thPara[i]);
   }
@@ -181,8 +181,8 @@ int main(int argc, char *argv[])
   for(int i=0;i<numOfWorkerThread;i++)
     pthread_join(th[i], NULL);
   printf("========= Done ===========\n\n\n");
-  printf("Finish run: \t numOfWorkerThread=%d \t totalResourceNum=%d \t resourceNeededPerThread=%d \t ifRandom=%d \t ifUseBigLock=%d\n"
-    , numOfWorkerThread, totalResourceNum, resourceNeededPerThread, ifRandom, ifUseBigLock);
+  printf("Finish run: \t numOfWorkerThread=%d \t totalResourceNum=%d \t resourceNeededPerThread=%d \t ifUseBigLock=%d \t ifSortAccess=%d\n"
+    , numOfWorkerThread, totalResourceNum, resourceNeededPerThread, ifUseBigLock, ifSortAccess);
 
   if(ifUseBigLock)
     pthread_mutex_destroy(&bigMutex);
