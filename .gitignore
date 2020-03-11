@@ -9,3 +9,6 @@
 /CodeInSlides/chapter3/ProcessBasicAPI-shell
 /CodeInSlides/chapter3/ThreadBasicAPI-create
 /CodeInSlides/chapter4/BoundedBuffer-monitor-mesatest
+/CodeInSlides/chapter4/Deadlock
+/CodeInSlides/chapter4/testInput/*.txt
+/CodeInSlides/chapter4/PreAssignJob
