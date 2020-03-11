@@ -8,48 +8,77 @@
 #include <sys/time.h>
 #include <time.h>
 
-#define INPUT_JOB_NUM 50
+#define INPUT_JOB_NUM 10
 #define INPUT_FOLDER_NAME "testInput"
+
+#define THE_HEAVY_JOB_ID 1
+#define THE_HEAVY_WEIGHT 1
+
+#define CHUNK_SIZE 4096
+#define TOTAL_CHUNK_NUM 10240
+
+typedef unsigned char BYTE;
 
 char *inJob[INPUT_JOB_NUM];
 
 double time_diff(struct timeval x , struct timeval y)
 {
   double x_ms , y_ms , diff;
-  
   x_ms = (double)x.tv_sec*1000000 + (double)x.tv_usec;
   y_ms = (double)y.tv_sec*1000000 + (double)y.tv_usec;
-  
   diff = (double)y_ms - (double)x_ms;
-
   if(diff<0)
   {
     fprintf(stderr, "ERROR! time_diff<0\n");
-    printf("ERROR! time_diff<0\n");
-    fflush(stdout);
     exit(1);
   }
   return diff;
 }
 
-void generateJob()
+long int generateJob()
 {
+  char command[1000];
+  sprintf(command,"rm -rf %s",INPUT_FOLDER_NAME);
+  int status=system(command);
   mkdir(INPUT_FOLDER_NAME, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+  BYTE writeBuf[CHUNK_SIZE];
+  int writeSize=0;
+  for(int i=0;i<CHUNK_SIZE;i++)
+    writeBuf[i]=1;//All byte set to be 1
+  long int totalBytes=0;
   for(int i=0;i<INPUT_JOB_NUM;i++)
   {
     inJob[i]=malloc(sizeof(char)*256);
     sprintf(inJob[i], "%s/testInput%04d.txt",INPUT_FOLDER_NAME,i);
-    // printf("%s\n",inJob[i]);
     FILE *fp;
     if((fp = fopen(inJob[i],"w"))==NULL)
     {
       perror("fopen ERROR!");
       exit(1);
     }
-    for(int j=0;j<1000000;j++)
-      fprintf(fp, "%d\n", 1);
+    int heavyScale=1;
+    if(i==THE_HEAVY_JOB_ID)
+      heavyScale=THE_HEAVY_WEIGHT;
+    for(int j=0;j<TOTAL_CHUNK_NUM*heavyScale;j++)
+    {
+      while(1)//Write until this CHUNK_SIZE has all been written
+      {
+        writeSize=writeSize+fwrite(writeBuf, 1, CHUNK_SIZE-writeSize, fp);
+        totalBytes=totalBytes+writeSize;
+        if(writeSize<0) {
+          perror("write ERROR!");
+          exit(1);
+        }
+        else if(writeSize==CHUNK_SIZE) {
+          //This CHUNK_SIZE done, go to the next CHUNK_SIZE
+          writeSize=0;
+          break;
+        }
+      }
+    }
     fclose(fp);   
   }
+  return totalBytes;
 }
 
 typedef struct {
@@ -64,7 +93,8 @@ void* calcSum(void* args) {
   int last=para->last;
   long int sum=0;
   FILE *fp;
-  int value=0;
+  BYTE readBuf[CHUNK_SIZE]={0};
+  int readSize=0;
   for(int i=first;i<last;i++)
   {
     if((fp = fopen(inJob[i],"r"))==NULL)
@@ -72,10 +102,22 @@ void* calcSum(void* args) {
       perror("fopen ERROR!");
       exit(1);
     }
-    while(fscanf(fp,"%d",&value)!=EOF)
-      sum=sum+value;
+    while(1)//Read until EOF
+    {
+      readSize=fread(readBuf, 1, CHUNK_SIZE, fp);
+      if(readSize<0){
+        perror("read ERROR!");
+        exit(1);
+      }
+      else if(readSize==0){ //EOF
+        break;
+      }
+      for(int j=0;j<readSize;j++)
+        sum=sum+readBuf[j];
+      memset(readBuf,0,sizeof(BYTE)*readSize);
+    }
+    fclose(fp);
   }
-  fclose(fp);
   pthread_t tid = pthread_self();       
   printf("[%ld] thread (sum of inJobs[%04d]-inJobs[%04d]): \t %ld\n"
     , pthread_self()
@@ -99,20 +141,20 @@ int main(int argc, char *argv[])
 
   printf("Generating input jobs ...\n");
   gettimeofday(&tvGenStart,NULL);
-  generateJob();
+  long int totalBytes=generateJob();
   gettimeofday(&tvEnd,NULL);
-  printf("Generating input jobs done. Spend %.3lf s to finish.\n",time_diff(tvGenStart,tvEnd)/1E6);
+  printf("Generating input jobs done. Spend %.5lf s to finish. Total test input data size is %lf MBs\n",time_diff(tvGenStart,tvEnd)/1E6,(double)totalBytes/1E6);
 
-  printf("Main thread doing jobs ...\n");
+  printf("Main thread start doing jobs ...\n");
   gettimeofday(&tvMainStartCacl,NULL);
   ThreadParas thParaMain;
   thParaMain.first=0;
   thParaMain.last=INPUT_JOB_NUM;
   calcSum(&thParaMain);
   gettimeofday(&tvMainEndCacl,NULL);
-  printf("Main thread finish jobs. Spend %.3lf s to finish.\n",time_diff(tvMainStartCacl,tvMainEndCacl)/1E6);
+  printf("Main thread finish jobs. Spend %.5lf s to finish.\n",time_diff(tvMainStartCacl,tvMainEndCacl)/1E6);
 
-  printf("Worker threads doing jobs ...\n");
+  printf("Worker threads start doing jobs ...\n");
   gettimeofday(&tvWorkerStartCacl,NULL);
   pthread_t th[numOfWorkerThread];
   ThreadParas thPara[numOfWorkerThread];
@@ -136,7 +178,7 @@ int main(int argc, char *argv[])
   for(int i=0;i<numOfWorkerThread;i++)
     pthread_join(th[i], NULL);
   gettimeofday(&tvWorkerEndCacl,NULL);
-  printf("Worker threads finish jobs. Spend %.3lf s to finish.\n",time_diff(tvWorkerStartCacl,tvWorkerEndCacl)/1E6);
+  printf("Worker threads finish jobs. Spend %.5lf s to finish.\n",time_diff(tvWorkerStartCacl,tvWorkerEndCacl)/1E6);
 
   long int workerSum=0;
   for(int i=0;i<numOfWorkerThread;i++)
