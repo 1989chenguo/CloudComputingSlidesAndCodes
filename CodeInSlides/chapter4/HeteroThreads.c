@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <time.h>
+#include <semaphore.h> 
 
 #define INPUT_JOB_NUM 102400
 #define CHUNK_SIZE 4096
@@ -16,6 +17,13 @@ typedef unsigned char BYTE;
 BYTE **inJob;
 int nextJobToBeDone=0;
 pthread_mutex_t jobQueueMutex=PTHREAD_MUTEX_INITIALIZER;
+
+sem_t fullSlots; 
+
+long int *subJob;
+int subJobNum=0;
+int nextSubJobToBeDone=0;
+pthread_mutex_t subJobQueueMutex=PTHREAD_MUTEX_INITIALIZER;
 
 double time_diff(struct timeval x , struct timeval y)
 {
@@ -63,17 +71,30 @@ int recvAJob()
   return currentJobID;
 }
 
+void inputASubJob(long int sum)
+{
+  pthread_mutex_lock(&subJobQueueMutex);
+  if(subJobNum>=INPUT_JOB_NUM) 
+  {
+    pthread_mutex_unlock(&subJobQueueMutex);
+    fprintf(stderr, "subJobNum %d ERROR, exceeding INPUT_JOB_NUM %d\n", subJobNum, INPUT_JOB_NUM);
+    exit(1);
+  }
+  subJob[subJobNum]=sum;
+  subJobNum++;
+  pthread_mutex_unlock(&subJobQueueMutex);
+  sem_post(&fullSlots); 
+}
+
 void processAJob(int jobID, long int *sum)
 {
   for(int j=0;j<CHUNK_SIZE;j++)
     *sum=*sum+inJob[jobID][j];
-  // fprintf(stderr,"%ld\n",*sum);
 } 
 
 void* calcSum(void* args) {
   ThreadParas* para = (ThreadParas*) args;
   long int sum=0;
-  FILE *fp;
   int currentJobID=0;
   int *whichJobIHaveDone=malloc(INPUT_JOB_NUM*sizeof(int));//Remember which job I have done
   long int numOfJobsIHaveDone=0;//Remember how many jobs I have done
@@ -87,12 +108,51 @@ void* calcSum(void* args) {
     numOfJobsIHaveDone++;
     
     processAJob(currentJobID,&sum);
+
+    inputASubJob(sum);
   }
   pthread_t tid = pthread_self();       
   printf("[%ld] thread (sum of %ld inJobs["
     , pthread_self(), numOfJobsIHaveDone);
   printf("]): \t %ld\n", sum);
   para->result=sum;
+}
+
+void initSubJobQueue()
+{
+  subJob=malloc(INPUT_JOB_NUM*sizeof(long int));
+}
+
+int recvASubJob()
+{
+  int currentJobID=0;
+  sem_wait(&fullSlots);
+  pthread_mutex_lock(&subJobQueueMutex);
+  currentJobID=nextSubJobToBeDone;
+  nextSubJobToBeDone++;
+  pthread_mutex_unlock(&subJobQueueMutex);
+  return currentJobID;
+}
+
+void processASubJob(int jobID)
+{
+  fprintf(stderr,"%ld\n",subJob[jobID]);
+}  
+
+void* fprintSum(void* args) {
+  int subJobID=0;
+  long int numOfJobsIHaveDone=0;//Remember how many jobs I have done
+  while(1)
+  {
+    subJobID=recvASubJob();
+    processASubJob(subJobID);
+    numOfJobsIHaveDone++;
+    if(subJobID==INPUT_JOB_NUM-1)//All job done
+      break;
+  }
+  pthread_t tid = pthread_self();       
+  printf("[%ld] thread (fprint %ld subJobs[])\n"
+    , pthread_self(), numOfJobsIHaveDone);
 }
 
 int main(int argc, char *argv[])
@@ -112,7 +172,10 @@ int main(int argc, char *argv[])
   gettimeofday(&tvEnd,NULL);
   printf("Generating input jobs done. Spend %.5lf s to finish. Total test input data size is %lf MBs\n",time_diff(tvGenStart,tvEnd)/1E6,(double)totalBytes/1E6);
 
+  sem_init(&fullSlots, 0, 0); 
+  initSubJobQueue();
   nextJobToBeDone=0;
+  nextSubJobToBeDone=0;
   printf("Worker threads start doing jobs ...\n");
   gettimeofday(&tvWorkerStartCacl,NULL);
   pthread_t th[numOfWorkerThread];
@@ -125,8 +188,15 @@ int main(int argc, char *argv[])
       exit(1);
     }
   }
+  pthread_t thSub;
+  if(pthread_create(&thSub, NULL, fprintSum, NULL)!=0)
+  {
+    perror("pthread_create failed");
+    exit(1);
+  }
   for(int i=0;i<numOfWorkerThread;i++)
     pthread_join(th[i], NULL);
+  pthread_join(thSub, NULL);
   gettimeofday(&tvWorkerEndCacl,NULL);
   printf("Worker threads finish jobs. Spend %.5lf s to finish.\n",time_diff(tvWorkerStartCacl,tvWorkerEndCacl)/1E6);
 

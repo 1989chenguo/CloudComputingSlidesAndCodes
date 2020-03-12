@@ -191,5 +191,6 @@ int main(int argc, char *argv[])
     workerSum=workerSum+thPara[i].result;
   printf("Sum of all %d threads: \t\t %ld\n", numOfWorkerThread, workerSum);
 
+  //In real project, do free the memory and destroy mutexes and semaphores
   exit(0);
 }
