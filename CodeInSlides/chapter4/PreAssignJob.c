@@ -35,7 +35,7 @@ double time_diff(struct timeval x , struct timeval y)
   return diff;
 }
 
-long int generateJob()
+long int generateJobs()
 {
   char command[1000];
   sprintf(command,"rm -rf %s",INPUT_FOLDER_NAME);
@@ -86,36 +86,41 @@ typedef struct {
   long int result;
 } ThreadParas;
 
+void processAJob(int jobID, long int *sum)
+{
+  BYTE readBuf[CHUNK_SIZE]={0};
+  int readSize=0;
+  FILE *fp;
+  if((fp = fopen(inJob[jobID],"r"))==NULL)
+  {
+    perror("fopen ERROR!");
+    exit(1);
+  }
+  while(1)//Read until EOF
+  {
+    readSize=fread(readBuf, 1, CHUNK_SIZE, fp);
+    if(readSize<0){
+      perror("read ERROR!");
+      exit(1);
+    }
+    else if(readSize==0){ //EOF
+      break;
+    }
+    for(int j=0;j<readSize;j++)
+      *sum=*sum+readBuf[j];
+    memset(readBuf,0,sizeof(BYTE)*readSize);
+  }
+  fclose(fp);
+}
+
 void* calcSum(void* args) {
   ThreadParas* para = (ThreadParas*) args;
   int first=para->first;
   int last=para->last;
   long int sum=0;
-  FILE *fp;
-  BYTE readBuf[CHUNK_SIZE]={0};
-  int readSize=0;
   for(int i=first;i<last;i++)
   {
-    if((fp = fopen(inJob[i],"r"))==NULL)
-    {
-      perror("fopen ERROR!");
-      exit(1);
-    }
-    while(1)//Read until EOF
-    {
-      readSize=fread(readBuf, 1, CHUNK_SIZE, fp);
-      if(readSize<0){
-        perror("read ERROR!");
-        exit(1);
-      }
-      else if(readSize==0){ //EOF
-        break;
-      }
-      for(int j=0;j<readSize;j++)
-        sum=sum+readBuf[j];
-      memset(readBuf,0,sizeof(BYTE)*readSize);
-    }
-    fclose(fp);
+    processAJob(i,&sum);
   }
   pthread_t tid = pthread_self();       
   printf("[%ld] thread (sum of inJobs[%04d]-inJobs[%04d]): \t %ld\n"
@@ -142,7 +147,7 @@ int main(int argc, char *argv[])
 
   printf("Generating input jobs ...\n");
   gettimeofday(&tvGenStart,NULL);
-  long int totalBytes=generateJob();
+  long int totalBytes=generateJobs();
   gettimeofday(&tvEnd,NULL);
   printf("Generating input jobs done. Spend %.5lf s to finish. Total test input data size is %lf MBs\n",time_diff(tvGenStart,tvEnd)/1E6,(double)totalBytes/1E6);
 
