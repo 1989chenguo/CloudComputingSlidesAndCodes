@@ -14,6 +14,9 @@
 
 #define OUTPUT_FOLDER_NAME "testOutput"
 
+long int totalNumOfJobsDone=0;
+pthread_mutex_t jobNumMutex=PTHREAD_MUTEX_INITIALIZER;
+
 double time_diff(struct timeval x , struct timeval y)
 {
   double x_ms , y_ms , diff;
@@ -62,7 +65,7 @@ void initJobQueue()
 
 int dequeueAJob(char *job)
 {
-  int jobID=0;
+  long int jobID=0;
   sem_wait(&inJobQueue.fullSlots);
   pthread_mutex_lock(&inJobQueue.mutex);
   memcpy(job,inJobQueue.jobs[inJobQueue.head],MAX_URL_LENGTH*sizeof(job[0]));
@@ -97,50 +100,40 @@ void* processJobsLongLiveThread(void* args) {
   int* id = (int*) args;
   long int numOfJobsIHaveDone=0;//Remember how many jobs I have done
   char job[MAX_URL_LENGTH]={0};
-  int jobID;
+  long int jobID;
   char command[MAX_URL_LENGTH+1000];
   struct timeval tvStart,tvEnd;
   while(1)
   {
     jobID=dequeueAJob(job);
     gettimeofday(&tvStart,NULL);
-    threadFlags[*id]=1;// In busy state
     numOfJobsIHaveDone++;
     memset(command,0,(MAX_URL_LENGTH+1000)*sizeof(command[0]));
-    sprintf(command,"wget %s -O %s/%05d.html > %s/%05d.log 2>&1",job,OUTPUT_FOLDER_NAME,jobID,OUTPUT_FOLDER_NAME,jobID);
+    sprintf(command,"wget %s -O %s/%05ld.html > %s/%05ld.log 2>&1",job,OUTPUT_FOLDER_NAME,jobID,OUTPUT_FOLDER_NAME,jobID);
     // printf("thread[%d]: %s\n",*id,command);
     int status=system(command);//get the URL page
 
     //Log time spent
     gettimeofday(&tvEnd,NULL);
     memset(command,0,(MAX_URL_LENGTH+1000)*sizeof(command[0]));
-    sprintf(command,"echo \"[RESULT]: get URL %s , spend %.3lf s\" >> %s/%05d.log"
+    sprintf(command,"echo \"[RESULT]: get URL %s , spend %.3lf s\" >> %s/%05ld.log"
       ,job,time_diff(tvStart,tvEnd)/1E6,OUTPUT_FOLDER_NAME,jobID);
     status=system(command);
-    threadFlags[*id]=0;// In idle state
+
+    pthread_mutex_lock(&jobNumMutex);
+    totalNumOfJobsDone++;
+    pthread_mutex_unlock(&jobNumMutex);
   }
 }
 
-void waitForAllJobsDone(int numOfWorkerThread)
+void waitForAllJobsDone(int finalJobID)
 {
   //Lazily wait all the worker threads finish their wget jobs
   while(1)
   {
     usleep(10000);//Check per 10 ms
-    int stopFlag=1;
-    if(inJobQueue.outCount==inJobQueue.inCount)
-    {
-      for(int i=0;i<numOfWorkerThread;i++)
-      {
-        if(threadFlags[i]==1)//not in idle state
-        {
-          stopFlag=0;
-          break;
-        }
-      }
-      if(stopFlag==1)// All worker threads in idle and no jobs wait in the queue.
-        break;
-    }
+    if(totalNumOfJobsDone==finalJobID)//All jobs done
+      break;
   }
 }
 
@@ -174,8 +167,8 @@ int main(int argc, char *argv[])
     enqueueAJob(url);
   }
   
-  waitForAllJobsDone(numOfWorkerThread);
-  printf("Finish all jobs! Get %ld URLs in total!\n",inJobQueue.outCount);
+  waitForAllJobsDone(inJobQueue.inCount);
+  printf("Finish all jobs! Get %ld URLs in total!\n",totalNumOfJobsDone);
   //In real project, do free the memory and destroy mutexes and semaphores
   exit(0);
 }

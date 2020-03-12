@@ -64,12 +64,11 @@ void* processJobsOnDemandThread(void* args) {
     ,job,time_diff(tvStart,tvEnd)/1E6,OUTPUT_FOLDER_NAME,jobID);
   status=system(command);
 
+  free(job);
+  free(para);
   pthread_mutex_lock(&jobNumMutex);
   totalNumOfJobsDone++;
   pthread_mutex_unlock(&jobNumMutex);
-
-  free(job);
-  free(para);
 }
 
 void waitForAllJobsDone(int finalJobID)
