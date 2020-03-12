@@ -19,7 +19,8 @@ CFLAGS = -O3 -pthread
 # the build target executable:
 TARGETS = ATMProblemShow ATMProblemShow-mutex \
 BoundedBuffer-mutex BoundedBuffer-semaphore BoundedBuffer-monitor BoundedBuffer-monitor-mesatest \
-Deadlock PreAssignJob DynamicAssignJob HomoThreads HeteroThreads ConcurrentWget-ThreadPool
+Deadlock PreAssignJob DynamicAssignJob HomoThreads HeteroThreads \
+ConcurrentWget-ThreadPool ConcurrentWget-OnDemand
 
 all: $(TARGETS)
 

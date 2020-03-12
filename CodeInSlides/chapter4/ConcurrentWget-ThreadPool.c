@@ -99,7 +99,6 @@ void* processJobsLongLiveThread(void* args) {
   char job[MAX_URL_LENGTH]={0};
   int jobID;
   char command[MAX_URL_LENGTH+1000];
-  FILE *ptr;
   struct timeval tvStart,tvEnd;
   while(1)
   {
@@ -127,7 +126,7 @@ void waitForAllJobsDone(int numOfWorkerThread)
   //Lazily wait all the worker threads finish their wget jobs
   while(1)
   {
-    usleep(10000);//Check per 1 ms
+    usleep(10000);//Check per 10 ms
     int stopFlag=1;
     if(inJobQueue.outCount==inJobQueue.inCount)
     {
@@ -170,7 +169,6 @@ int main(int argc, char *argv[])
   }
 
   char url[MAX_URL_LENGTH]={0}; 
-  size_t len=0;
   while(scanf("%s",url)!=EOF)
   {
     enqueueAJob(url);

@@ -19,3 +19,4 @@
 *.html
 *.log
 /CodeInSlides/chapter4/ConcurrentWget-ThreadPool
+/CodeInSlides/chapter4/ConcurrentWget-OnDemand
