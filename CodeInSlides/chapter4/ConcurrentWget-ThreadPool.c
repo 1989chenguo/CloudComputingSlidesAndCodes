@@ -14,6 +14,20 @@
 
 #define OUTPUT_FOLDER_NAME "testOutput"
 
+double time_diff(struct timeval x , struct timeval y)
+{
+  double x_ms , y_ms , diff;
+  x_ms = (double)x.tv_sec*1000000 + (double)x.tv_usec;
+  y_ms = (double)y.tv_sec*1000000 + (double)y.tv_usec;
+  diff = (double)y_ms - (double)x_ms;
+  if(diff<0)
+  {
+    fprintf(stderr, "ERROR! time_diff<0\n");
+    exit(1);
+  }
+  return diff;
+}
+
 typedef unsigned char BYTE;
 int *threadFlags;
 
@@ -86,15 +100,24 @@ void* processJobsLongLiveThread(void* args) {
   int jobID;
   char command[MAX_URL_LENGTH+1000];
   FILE *ptr;
+  struct timeval tvStart,tvEnd;
   while(1)
   {
     jobID=dequeueAJob(job);
+    gettimeofday(&tvStart,NULL);
     threadFlags[*id]=1;// In busy state
     numOfJobsIHaveDone++;
     memset(command,0,(MAX_URL_LENGTH+1000)*sizeof(command[0]));
     sprintf(command,"wget %s -O %s/%05d.html > %s/%05d.log 2>&1",job,OUTPUT_FOLDER_NAME,jobID,OUTPUT_FOLDER_NAME,jobID);
     // printf("thread[%d]: %s\n",*id,command);
-    int status=system(command);
+    int status=system(command);//get the URL page
+
+    //Log time spent
+    gettimeofday(&tvEnd,NULL);
+    memset(command,0,(MAX_URL_LENGTH+1000)*sizeof(command[0]));
+    sprintf(command,"echo \"[RESULT]: get URL %s , spend %.3lf s\" >> %s/%05d.log"
+      ,job,time_diff(tvStart,tvEnd)/1E6,OUTPUT_FOLDER_NAME,jobID);
+    status=system(command);
     threadFlags[*id]=0;// In idle state
   }
 }
@@ -104,7 +127,7 @@ void waitForAllJobsDone(int numOfWorkerThread)
   //Lazily wait all the worker threads finish their wget jobs
   while(1)
   {
-    usleep(1000);//Check per 1 ms
+    usleep(10000);//Check per 1 ms
     int stopFlag=1;
     if(inJobQueue.outCount==inJobQueue.inCount)
     {
@@ -154,7 +177,7 @@ int main(int argc, char *argv[])
   }
   
   waitForAllJobsDone(numOfWorkerThread);
-  printf("Finish all jobs!\n");
+  printf("Finish all jobs! Get %ld URLs in total!\n",inJobQueue.outCount);
   //In real project, do free the memory and destroy mutexes and semaphores
   exit(0);
 }
