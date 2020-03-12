@@ -16,3 +16,6 @@
 /CodeInSlides/chapter4/HomoThreads
 /CodeInSlides/chapter4/*.log
 /CodeInSlides/chapter4/HeteroThreads
+*.html
+*.log
+/CodeInSlides/chapter4/ConcurrentWget-ThreadPool
