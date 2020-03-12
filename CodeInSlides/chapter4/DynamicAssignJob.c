@@ -20,6 +20,8 @@ int THE_HEAVY_WEIGHT=1;
 typedef unsigned char BYTE;
 
 char inJob[INPUT_JOB_NUM][256];
+int nextJobToBeDone=0;
+pthread_mutex_t jobQueueMutex=PTHREAD_MUTEX_INITIALIZER;
 
 double time_diff(struct timeval x , struct timeval y)
 {
@@ -81,22 +83,33 @@ long int generateJob()
 }
 
 typedef struct {
-  int first;
-  int last;
   long int result;
 } ThreadParas;
 
 void* calcSum(void* args) {
   ThreadParas* para = (ThreadParas*) args;
-  int first=para->first;
-  int last=para->last;
   long int sum=0;
   FILE *fp;
   BYTE readBuf[CHUNK_SIZE]={0};
   int readSize=0;
-  for(int i=first;i<last;i++)
+  int currentJobID=0;
+  int whichJobIHaveDone[INPUT_JOB_NUM]={0};//Remember which job I have done
+  int numOfJobsIHaveDone=0;//Remember how many jobs I have done
+  while(1)
   {
-    if((fp = fopen(inJob[i],"r"))==NULL)
+    pthread_mutex_lock(&jobQueueMutex);
+    if(nextJobToBeDone>=INPUT_JOB_NUM) 
+    {
+      pthread_mutex_unlock(&jobQueueMutex);
+      break;
+    }
+    currentJobID=nextJobToBeDone;
+    nextJobToBeDone++;
+    pthread_mutex_unlock(&jobQueueMutex);
+
+    whichJobIHaveDone[numOfJobsIHaveDone]=currentJobID;
+    numOfJobsIHaveDone++;
+    if((fp = fopen(inJob[currentJobID],"r"))==NULL)
     {
       perror("fopen ERROR!");
       exit(1);
@@ -118,11 +131,15 @@ void* calcSum(void* args) {
     fclose(fp);
   }
   pthread_t tid = pthread_self();       
-  printf("[%ld] thread (sum of inJobs[%04d]-inJobs[%04d]): \t %ld\n"
-    , pthread_self()
-    , first
-    , last-1
-    , sum);
+  printf("[%ld] thread (sum of inJobs["
+    , pthread_self());
+  for(int i=0;i<numOfJobsIHaveDone;i++) 
+  {
+    if(i>0)
+      printf(",");
+    printf("%d",whichJobIHaveDone[i]);
+  }
+  printf("]): \t %ld\n", sum);
   para->result=sum;
 }
 
@@ -149,27 +166,17 @@ int main(int argc, char *argv[])
   printf("Main thread start doing jobs ...\n");
   gettimeofday(&tvMainStartCacl,NULL);
   ThreadParas thParaMain;
-  thParaMain.first=0;
-  thParaMain.last=INPUT_JOB_NUM;
   calcSum(&thParaMain);
   gettimeofday(&tvMainEndCacl,NULL);
   printf("Main thread finish jobs. Spend %.5lf s to finish.\n",time_diff(tvMainStartCacl,tvMainEndCacl)/1E6);
 
+  nextJobToBeDone=0;
   printf("Worker threads start doing jobs ...\n");
   gettimeofday(&tvWorkerStartCacl,NULL);
   pthread_t th[numOfWorkerThread];
   ThreadParas thPara[numOfWorkerThread];
   for(int i=0;i<numOfWorkerThread;i++)
   {
-    int first=(int)(INPUT_JOB_NUM/numOfWorkerThread)*i;
-    int last;
-    if(i!=numOfWorkerThread-1)
-      last=(int)(INPUT_JOB_NUM/numOfWorkerThread)*(i+1);
-    else
-      last=INPUT_JOB_NUM;
-    thPara[i].first=first;
-    thPara[i].last=last;
-
     if(pthread_create(&th[i], NULL, calcSum, &thPara[i])!=0)
     {
       perror("pthread_create failed");
