@@ -15,12 +15,14 @@
 
 CC = gcc
 CFLAGS = -O3 -pthread
+CPPFLAGS = -O3 -pthread
 
 # the build target executable:
 TARGETS = ATMProblemShow ATMProblemShow-mutex \
 BoundedBuffer-mutex BoundedBuffer-semaphore BoundedBuffer-monitor BoundedBuffer-monitor-mesatest \
 Deadlock PreAssignJob DynamicAssignJob HomoThreads HeteroThreads \
-ConcurrentWget-ThreadPool ConcurrentWget-OnDemand ConcurrentQuickSort-Recursive
+ConcurrentWget-ThreadPool ConcurrentWget-OnDemand \
+ConcurrentQuickSort-Recursive ConcurrentQuickSort-Iteration
 
 all: $(TARGETS)
 
