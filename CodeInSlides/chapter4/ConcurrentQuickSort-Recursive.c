@@ -10,15 +10,16 @@
 
 #define IF_PRINT_DEBUG 0
 
-#define MAX_CONCURRENT_THREAD_NUM 4
-int concurrentThreadNum=1;//Main thread counts for one
-int maxConcurrentThreadNumEverAppeared=1;
-int totalThreadCreated=1;//Main thread counts for one
+#define MIN_ARRAY_LEN_FOR_CREATE_A_THREAD_TO_SORT 100000
+#define MAX_CONCURRENT_THREAD_NUM 1000
+int concurrentThreadNum=0;//Main thread counts for one
+int maxConcurrentThreadNumEverAppeared=0;
+int totalThreadCreated=0;//Main thread counts for one
 
 // pthread_mutex_t threadNumMutex=PTHREAD_MUTEX_INITIALIZER;
 // To strictly limit the concurrent thread num, we should use this mutex
-// However, this significantly hurt performance. As such, I comment this mutex
-// So the concurrent thread num may exceed the limit a little
+// However, this significantly hurts performance. As such, I comment this mutex
+// So the concurrent thread num may exceed the limit a little, but not affect the correctness
 
 double time_diff(struct timeval x , struct timeval y);
 void swap(int* array,int first,int second);
@@ -118,7 +119,8 @@ int createAThreadToQuickSort(int *array, int left, int right, pthread_t *th)
   sortPara.left=left;
   sortPara.right=right;
   // pthread_mutex_lock(&threadNumMutex);
-  if(concurrentThreadNum<MAX_CONCURRENT_THREAD_NUM)
+  if(concurrentThreadNum<MAX_CONCURRENT_THREAD_NUM 
+    && right-left>=MIN_ARRAY_LEN_FOR_CREATE_A_THREAD_TO_SORT)
   {
     totalThreadCreated++;
     concurrentThreadNum++;
@@ -161,18 +163,21 @@ void doSortTest(int sortArrayLen, int runTimes, int ifSequential)//ifSequential 
       printf("\n");
     }
 
-    totalThreadCreated=1;
-    concurrentThreadNum=1;
-    maxConcurrentThreadNumEverAppeared=1;
+    totalThreadCreated=0;
+    concurrentThreadNum=0;
+    maxConcurrentThreadNumEverAppeared=0;
 
     struct timeval tvStart,tvEnd;
     gettimeofday(&tvStart,NULL);
     if(ifSequential==0) {
-      SortArgs sortPara;
-      sortPara.array=array;
-      sortPara.left=0;
-      sortPara.right=sortArrayLen-1;
-      QuickSortParallel(&sortPara);
+      pthread_t th;
+      int re=createAThreadToQuickSort(array,0,sortArrayLen-1,&th);
+      if(re==1) {
+        pthread_join(th, NULL);
+        // pthread_mutex_lock(&threadNumMutex);
+        concurrentThreadNum--;
+        // pthread_mutex_unlock(&threadNumMutex);
+      }
       printf("RUN[%d] Parallel sort done. Create %d threads in total. The max concurrency ever appeared is %d. "
         ,n,totalThreadCreated,maxConcurrentThreadNumEverAppeared);
     } 
@@ -207,7 +212,7 @@ int main(int argc, char *argv[])
     int sortArrayLen=10000000;
     if(argc>=2)
       sortArrayLen=atoi(argv[1]);
-    int sortTimes=10;
+    int sortTimes=20;
     if(argc>=3)
       sortTimes=atoi(argv[2]);
 
