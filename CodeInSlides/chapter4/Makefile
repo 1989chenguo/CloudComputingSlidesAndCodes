@@ -20,7 +20,7 @@ CFLAGS = -O3 -pthread
 TARGETS = ATMProblemShow ATMProblemShow-mutex \
 BoundedBuffer-mutex BoundedBuffer-semaphore BoundedBuffer-monitor BoundedBuffer-monitor-mesatest \
 Deadlock PreAssignJob DynamicAssignJob HomoThreads HeteroThreads \
-ConcurrentWget-ThreadPool ConcurrentWget-OnDemand
+ConcurrentWget-ThreadPool ConcurrentWget-OnDemand ConcurrentQuickSort-Recursive
 
 all: $(TARGETS)
 
