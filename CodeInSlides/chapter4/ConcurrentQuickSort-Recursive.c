@@ -8,13 +8,17 @@
 #include <sys/time.h>
 #include <time.h>
 
-#define IF_PRINT_DEBUG 1
+#define IF_PRINT_DEBUG 0
 
 #define MAX_CONCURRENT_THREAD_NUM 4
-int concurrentThreadNum=0;
-int maxConcurrentThreadNumEverAppeared=0;
-int totalThreadCreated=0;
-pthread_mutex_t threadNumMutex=PTHREAD_MUTEX_INITIALIZER;
+int concurrentThreadNum=1;//Main thread counts for one
+int maxConcurrentThreadNumEverAppeared=1;
+int totalThreadCreated=1;//Main thread counts for one
+
+// pthread_mutex_t threadNumMutex=PTHREAD_MUTEX_INITIALIZER;
+// To strictly limit the concurrent thread num, we should use this mutex
+// However, this significantly hurt performance. As such, I comment this mutex
+// So the concurrent thread num may exceed the limit a little
 
 double time_diff(struct timeval x , struct timeval y);
 void swap(int* array,int first,int second);
@@ -70,29 +74,26 @@ typedef struct {
 void* QuickSortParallel(void* args)
 {
   SortArgs* para = (SortArgs*) args;
-  int* array=para->array;
-  int left=para->left;
-  int right=para->right;
-  if(left >= right)
+  if(para->left >= para->right)
       return NULL;
 
-  int index = PartSort(array,left,right);
+  int index = PartSort(para->array,para->left,para->right);
   
   pthread_t th1;
-  int re1=createAThreadToQuickSort(array,left,index-1,&th1);
+  int re1=createAThreadToQuickSort(para->array,para->left,index-1,&th1);
   pthread_t th2;
-  int re2=createAThreadToQuickSort(array,index+1,right,&th2);
+  int re2=createAThreadToQuickSort(para->array,index+1,para->right,&th2);
   if(re1==1) {
     pthread_join(th1, NULL);
-    pthread_mutex_lock(&threadNumMutex);
+    // pthread_mutex_lock(&threadNumMutex);
     concurrentThreadNum--;
-    pthread_mutex_unlock(&threadNumMutex);
+    // pthread_mutex_unlock(&threadNumMutex);
   }
   if(re2==1) {
     pthread_join(th2, NULL);
-    pthread_mutex_lock(&threadNumMutex);
+    // pthread_mutex_lock(&threadNumMutex);
     concurrentThreadNum--;
-    pthread_mutex_unlock(&threadNumMutex);
+    // pthread_mutex_unlock(&threadNumMutex);
   }
 }
 
@@ -116,7 +117,7 @@ int createAThreadToQuickSort(int *array, int left, int right, pthread_t *th)
   sortPara.array=array;
   sortPara.left=left;
   sortPara.right=right;
-  pthread_mutex_lock(&threadNumMutex);
+  // pthread_mutex_lock(&threadNumMutex);
   if(concurrentThreadNum<MAX_CONCURRENT_THREAD_NUM)
   {
     totalThreadCreated++;
@@ -130,12 +131,12 @@ int createAThreadToQuickSort(int *array, int left, int right, pthread_t *th)
       perror("pthread_create failed");
       exit(1);
     }
-    pthread_mutex_unlock(&threadNumMutex);
+    // pthread_mutex_unlock(&threadNumMutex);
     re=1;
   }
   else
   {
-    pthread_mutex_unlock(&threadNumMutex);
+    // pthread_mutex_unlock(&threadNumMutex);
     QuickSortParallel(&sortPara);
   }
   return re;
@@ -159,32 +160,29 @@ void doSortTest(int sortArrayLen, int runTimes, int ifSequential)//ifSequential 
         printf("%d ", array[i]);
       printf("\n");
     }
+
+    totalThreadCreated=1;
+    concurrentThreadNum=1;
+    maxConcurrentThreadNumEverAppeared=1;
+
     struct timeval tvStart,tvEnd;
     gettimeofday(&tvStart,NULL);
-
     if(ifSequential==0) {
-      concurrentThreadNum=0;
-      maxConcurrentThreadNumEverAppeared=0;
       SortArgs sortPara;
       sortPara.array=array;
       sortPara.left=0;
       sortPara.right=sortArrayLen-1;
       QuickSortParallel(&sortPara);
-      if(IF_PRINT_DEBUG) {
-        printf("RUN[%d] Parallel sort done.\n",n);
-        printf("RUN[%d] Create %d threads in total. The max concurrency ever appeared is %d\n"
-          ,n,totalThreadCreated,maxConcurrentThreadNumEverAppeared);
-      }
+      printf("RUN[%d] Parallel sort done. Create %d threads in total. The max concurrency ever appeared is %d. "
+        ,n,totalThreadCreated,maxConcurrentThreadNumEverAppeared);
     } 
     else {
       QuickSortSequential(array,0,sortArrayLen-1);
-      if(IF_PRINT_DEBUG) {
-        printf("RUN[%d] Sequential sort done.\n",n);
-      }
+      printf("RUN[%d] Sequential sort done. ",n);
     }
-
     gettimeofday(&tvEnd,NULL);
     totalSortTime=totalSortTime+time_diff(tvStart,tvEnd);
+    printf("Spend %.5lf s.\n",time_diff(tvStart,tvEnd)/1E6);
     if(IF_PRINT_DEBUG)
     {
       printf("RUN[%d] Sorted:\n",n);
@@ -198,22 +196,25 @@ void doSortTest(int sortArrayLen, int runTimes, int ifSequential)//ifSequential 
     printf("Parallel sort all done.\n");
   else
     printf("Sequential sort all done.\n");
-  printf("Run %d times sort. %.5lf s per sort.\n"
-    ,runTimes,totalSortTime/1E6/runTimes);
+  printf("Run %d times sort. Spend %.5lf s in total, %.5lf s per sort.\n"
+    ,runTimes,totalSortTime/1E6,totalSortTime/1E6/runTimes);
 
   free(array);
 }
 
 int main(int argc, char *argv[])
 {
-    int sortArrayLen=10000;
+    int sortArrayLen=10000000;
     if(argc>=2)
-        sortArrayLen=atoi(argv[1]);
+      sortArrayLen=atoi(argv[1]);
+    int sortTimes=10;
+    if(argc>=3)
+      sortTimes=atoi(argv[2]);
 
     srand(time(NULL));
 
-    doSortTest(sortArrayLen,2,1);//Sequential sort
-    doSortTest(sortArrayLen,2,0);//Parallel sort
+    doSortTest(sortArrayLen,sortTimes,1);//Sequential sort
+    doSortTest(sortArrayLen,sortTimes,0);//Parallel sort
     
     return 0;
 }
