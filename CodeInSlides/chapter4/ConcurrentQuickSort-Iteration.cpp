@@ -9,9 +9,11 @@
 #include <time.h>
 #include <stack>
 #include <sched.h>
+#include <semaphore.h> 
 
 #define IF_PRINT_DEBUG 0
-#define CONCURRENT_THREAD_NUM 2
+#define CONCURRENT_THREAD_NUM 4
+#define MIN_ARRAY_LEN_FOR_CREATE_A_THREAD_TO_SORT 100000
 
 typedef struct {
   int* array;
@@ -19,17 +21,37 @@ typedef struct {
   int right;
 } SortJob;
 
-std::stack<SortJob> sortJobStack;
+std::stack<SortJob> sortJobStackGlobal;
 pthread_mutex_t sortJobStackMutex=PTHREAD_MUTEX_INITIALIZER;
-int busyThreadNum=0;
-pthread_mutex_t busyThreadNumMutex=PTHREAD_MUTEX_INITIALIZER;
+sem_t sortJobStackEmptySlots;
+int ifThreadBusy[CONCURRENT_THREAD_NUM];
+//ifThreadBusy[i] indicates if a thread is doing sorting job
+//If all ifThreadBusy[i]==0, then the whole sort has finished and we can exit
+int ifAllThreadExit;//Flag for main thread to notify worker exit
 
 double time_diff(struct timeval x , struct timeval y);
 void swap(int* array,int first,int second);
 int PartSort(int* array,int left,int right);
 void* QuickSortParallel(void* args);
+void QuickSortSequential(int* array, int left, int right);
 int createAThreadToQuickSort(int *array, int left, int right, pthread_t *th);
 
+void initParallelSort(int *array, int sortArrayLen)
+{
+  SortJob job;
+  job.array=array;
+  job.left=0;
+  job.right=sortArrayLen-1;
+  sortJobStackGlobal.push(job);
+  for(int i=0;i<CONCURRENT_THREAD_NUM;i++)
+    ifThreadBusy[i]=0;
+  ifAllThreadExit=0;
+  sem_destroy(&sortJobStackEmptySlots); 
+  pthread_mutex_destroy(&sortJobStackMutex);
+
+  sem_init(&sortJobStackEmptySlots, 0, 1); 
+  pthread_mutex_init(&sortJobStackMutex,NULL);
+}
 
 double time_diff(struct timeval x , struct timeval y)
 {
@@ -71,44 +93,66 @@ int PartSort(int* array,int left,int right)
 
 void* QuickSortParallel(void* args)
 {
+  int *threadID=(int *) args;
+  if(IF_PRINT_DEBUG==2)
+    printf("Thread[%d] start.\n",*threadID);
   SortJob job;
   while(1)
   {
+    sem_wait(&sortJobStackEmptySlots); 
     pthread_mutex_lock(&sortJobStackMutex);
-    if(sortJobStack.empty()) {
+    if(ifAllThreadExit==1) {
+      if(IF_PRINT_DEBUG==2)
+        printf("Thread[%d] exit.\n",*threadID);
       pthread_mutex_unlock(&sortJobStackMutex);
-      sched_yield();
-      continue;
+      break;
     }
-    pthread_mutex_lock(&busyThreadNumMutex);
-    busyThreadNum++;
-    pthread_mutex_unlock(&busyThreadNumMutex);
-    job = sortJobStack.top();
-    sortJobStack.pop();
+    job = sortJobStackGlobal.top();
+    sortJobStackGlobal.pop();
     int left=job.left;
     int right=job.right;
+    ifThreadBusy[*threadID]=1;
     pthread_mutex_unlock(&sortJobStackMutex);
-
-    int index = PartSort(job.array,job.left,job.right);
-    if((index - 1) > left)//左子序列
+    if(right-left>=MIN_ARRAY_LEN_FOR_CREATE_A_THREAD_TO_SORT)
     {
-      job.left=left;
-      job.right=index - 1;
+      int index = PartSort(job.array,left,right);
+      if(IF_PRINT_DEBUG==2)
+        printf("Thread[%d]: PartSort[%d-%d] ifThreadBusy=%d\n"
+          ,*threadID,job.left,job.right,ifThreadBusy[*threadID]);
       pthread_mutex_lock(&sortJobStackMutex);
-      sortJobStack.push(job);
+      if((index - 1) > left)//左子序列
+      {
+        job.left=left;
+        job.right=index - 1;
+        sortJobStackGlobal.push(job);
+        sem_post(&sortJobStackEmptySlots);
+        if(IF_PRINT_DEBUG==2)
+          printf("Thread[%d]: push[%d-%d] ifThreadBusy=%d\n"
+            ,*threadID,job.left,job.right,ifThreadBusy[*threadID]);
+      }
+      if((index + 1) < right)//右子序列
+      {
+        job.left=index + 1;
+        job.right=right;
+        sortJobStackGlobal.push(job);
+        sem_post(&sortJobStackEmptySlots);
+        if(IF_PRINT_DEBUG==2)
+          printf("Thread[%d]: push[%d-%d] ifThreadBusy=%d\n"
+            ,*threadID,job.left,job.right,ifThreadBusy[*threadID]);
+      }
+      ifThreadBusy[*threadID]=0;
       pthread_mutex_unlock(&sortJobStackMutex);
     }
-    if((index + 1) < right)//右子序列
+    else
     {
-      job.left=index + 1;
-      job.right=right;
+      if(IF_PRINT_DEBUG==2)
+        printf("Thread[%d]: QuickSortSequential[%d-%d] ifThreadBusy=%d\n"
+          ,*threadID,job.left,job.right,ifThreadBusy[*threadID]);
+      QuickSortSequential(job.array,left,right);
       pthread_mutex_lock(&sortJobStackMutex);
-      sortJobStack.push(job);
-      pthread_mutex_unlock(&sortJobStackMutex);
+      ifThreadBusy[*threadID]=0;
+      pthread_mutex_unlock(&sortJobStackMutex); 
     }
-    pthread_mutex_lock(&busyThreadNumMutex);
-    busyThreadNum--;
-    pthread_mutex_unlock(&busyThreadNumMutex);
   }
 }
 
@@ -118,6 +162,7 @@ void QuickSortSequential(int* array, int left, int right)
   job.array=array;
   job.left=left;
   job.right=right;
+  std::stack<SortJob> sortJobStack;
   sortJobStack.push(job);
   while(1)
   {
@@ -144,20 +189,33 @@ void QuickSortSequential(int* array, int left, int right)
   }
 }
 
-void waitForSortThreadsToFinish()
+void waitSortDoneAndNotifyAllThreadsToExit()
 {
-  while(1) 
+  while(1)
   {
-    usleep(10000);
+    usleep(10000);//Check every 10ms
     pthread_mutex_lock(&sortJobStackMutex);
-    pthread_mutex_lock(&busyThreadNumMutex);
-    if(sortJobStack.empty() && busyThreadNum==0) {
-      pthread_mutex_unlock(&sortJobStackMutex);
-      pthread_mutex_unlock(&busyThreadNumMutex);
-      break;
+    if(sortJobStackGlobal.empty())
+    {
+      int exit=1;
+      for(int i=0;i<CONCURRENT_THREAD_NUM;i++)
+      {
+        if(ifThreadBusy[i]==1)
+        {
+          exit=0;
+          break;
+        }
+      }
+      if(exit==1) {
+        ifAllThreadExit=1;
+        for(int i=0;i<CONCURRENT_THREAD_NUM;i++)
+          sem_post(&sortJobStackEmptySlots);//Wakeup all waiting threads
+        //They will exit since they check ifAllThreadExit whenever wakeup
+        pthread_mutex_unlock(&sortJobStackMutex);
+        break; // Exit waiting
+      }
     }
     pthread_mutex_unlock(&sortJobStackMutex);
-    pthread_mutex_unlock(&busyThreadNumMutex);
   }
 }
 
@@ -183,22 +241,22 @@ void doSortTest(int sortArrayLen, int runTimes, int ifSequential)//ifSequential 
     struct timeval tvStart,tvEnd;
     gettimeofday(&tvStart,NULL);
     if(ifSequential==0) {
-      SortJob job;
-      job.array=array;
-      job.left=0;
-      job.right=sortArrayLen-1;
-      sortJobStack.push(job);
+      initParallelSort(array,sortArrayLen);
       pthread_t th[CONCURRENT_THREAD_NUM];
+      int threadID[CONCURRENT_THREAD_NUM];
       for(int i=0;i<CONCURRENT_THREAD_NUM;i++)
       {
-        if(pthread_create(&th[i], NULL, QuickSortParallel, NULL)!=0)
+        threadID[i]=i;
+        if(pthread_create(&th[i], NULL, QuickSortParallel, &threadID[i])!=0)
         {
           perror("pthread_create failed");
           exit(1);
         }
       }
-      waitForSortThreadsToFinish();
-      printf("RUN[%d] Parallel sort done. ",n);
+      waitSortDoneAndNotifyAllThreadsToExit();
+      for(int i=0;i<CONCURRENT_THREAD_NUM;i++)
+        pthread_join(th[i], NULL);
+      printf("RUN[%d] Parallel sort done. %d long-lived threads. ",n,CONCURRENT_THREAD_NUM);
     } 
     else {
       QuickSortSequential(array,0,sortArrayLen-1);

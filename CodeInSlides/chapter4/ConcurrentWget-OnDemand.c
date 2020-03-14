@@ -77,8 +77,13 @@ void waitForAllJobsDone(int finalJobID)
   while(1)
   {
     usleep(10000);//Check per 10 ms
+    pthread_mutex_lock(&jobNumMutex);
     if(totalNumOfJobsDone==finalJobID)//All jobs done
+    {  
+      pthread_mutex_unlock(&jobNumMutex);
       break;
+    }
+    pthread_mutex_unlock(&jobNumMutex);
   }
 }
 

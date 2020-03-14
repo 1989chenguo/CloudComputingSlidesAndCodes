@@ -25,6 +25,7 @@ double time_diff(struct timeval x , struct timeval y);
 void swap(int* array,int first,int second);
 int PartSort(int* array,int left,int right);
 void* QuickSortParallel(void* args);
+void QuickSortSequential(int* array, int left, int right);
 int createAThreadToQuickSort(int *array, int left, int right, pthread_t *th);
 
 
