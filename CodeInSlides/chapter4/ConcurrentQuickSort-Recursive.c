@@ -76,15 +76,20 @@ typedef struct {
 void* QuickSortParallel(void* args)
 {
   SortArgs* para = (SortArgs*) args;
-  if(para->left >= para->right)
+  int *array=para->array;
+  int left=para->left;
+  int right=para->right;
+  free(para);
+
+  if(left >= right)
       return NULL;
 
-  int index = PartSort(para->array,para->left,para->right);
+  int index = PartSort(array,left,right);
   
   pthread_t th1;
-  int re1=createAThreadToQuickSort(para->array,para->left,index-1,&th1);
+  int re1=createAThreadToQuickSort(array,left,index-1,&th1);
   pthread_t th2;
-  int re2=createAThreadToQuickSort(para->array,index+1,para->right,&th2);
+  int re2=createAThreadToQuickSort(array,index+1,right,&th2);
   if(re1==1) {
     pthread_join(th1, NULL);
     // pthread_mutex_lock(&threadNumMutex);
@@ -115,10 +120,6 @@ void QuickSortSequential(int* array, int left, int right)
 int createAThreadToQuickSort(int *array, int left, int right, pthread_t *th)
 {
   int re=0;
-  SortArgs sortPara;
-  sortPara.array=array;
-  sortPara.left=left;
-  sortPara.right=right;
   // pthread_mutex_lock(&threadNumMutex);
   if(concurrentThreadNum<MAX_CONCURRENT_THREAD_NUM 
     && right-left>=MIN_ARRAY_LEN_FOR_CREATE_A_THREAD_TO_SORT)
@@ -129,7 +130,11 @@ int createAThreadToQuickSort(int *array, int left, int right, pthread_t *th)
       maxConcurrentThreadNumEverAppeared=concurrentThreadNum;
     if(IF_PRINT_DEBUG)
       printf("Create thread [%d] to sort[%d-%d]\n",totalThreadCreated,left,right);
-    if(pthread_create(th, NULL, QuickSortParallel, &sortPara)!=0)
+    SortArgs *sortPara = malloc(sizeof(SortArgs));
+    sortPara->array=array;
+    sortPara->left=left;
+    sortPara->right=right;
+    if(pthread_create(th, NULL, QuickSortParallel, sortPara)!=0)
     {
       perror("pthread_create failed");
       exit(1);
@@ -140,7 +145,7 @@ int createAThreadToQuickSort(int *array, int left, int right, pthread_t *th)
   else
   {
     // pthread_mutex_unlock(&threadNumMutex);
-    QuickSortParallel(&sortPara);
+    QuickSortSequential(array,left,right);
   }
   return re;
 }
