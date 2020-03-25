@@ -9,13 +9,16 @@
 #include <time.h>
 #include <semaphore.h>
 
-#define MAX_CONCURRENT_INPUT_NUM 100
+#define MAX_CONCURRENT_INPUT_NUM 10000
 #define MAX_URL_LENGTH 1024
 
 #define OUTPUT_FOLDER_NAME "testOutput"
 
 long int totalNumOfJobsDone=0;
-pthread_mutex_t jobNumMutex=PTHREAD_MUTEX_INITIALIZER;
+int totalThreadsCreated=0;
+int concurrentThreadsNow=0;
+int maxConcurrentThreads=0;
+pthread_mutex_t counterMutex=PTHREAD_MUTEX_INITIALIZER;
 
 double time_diff(struct timeval x , struct timeval y)
 {
@@ -45,6 +48,12 @@ typedef struct {
 } ThreadParas;
 
 void* processJobsOnDemandThread(void* args) {
+  pthread_mutex_lock(&counterMutex);
+  totalThreadsCreated++;
+  concurrentThreadsNow++;
+  if(concurrentThreadsNow>maxConcurrentThreads)
+    maxConcurrentThreads=concurrentThreadsNow;
+  pthread_mutex_unlock(&counterMutex);
   ThreadParas* para = (ThreadParas*) args;
   char *job=para->job;
   long int jobID=para->jobID; 
@@ -66,9 +75,10 @@ void* processJobsOnDemandThread(void* args) {
 
   free(job);
   free(para);
-  pthread_mutex_lock(&jobNumMutex);
+  pthread_mutex_lock(&counterMutex);
   totalNumOfJobsDone++;
-  pthread_mutex_unlock(&jobNumMutex);
+  concurrentThreadsNow--;
+  pthread_mutex_unlock(&counterMutex);
 }
 
 void waitForAllJobsDone(int finalJobID)
@@ -77,13 +87,13 @@ void waitForAllJobsDone(int finalJobID)
   while(1)
   {
     usleep(10000);//Check per 10 ms
-    pthread_mutex_lock(&jobNumMutex);
+    pthread_mutex_lock(&counterMutex);
     if(totalNumOfJobsDone==finalJobID)//All jobs done
     {  
-      pthread_mutex_unlock(&jobNumMutex);
+      pthread_mutex_unlock(&counterMutex);
       break;
     }
-    pthread_mutex_unlock(&jobNumMutex);
+    pthread_mutex_unlock(&counterMutex);
   }
 }
 
@@ -113,6 +123,8 @@ int main(int argc, char *argv[])
   
   waitForAllJobsDone(nextJobID);
   printf("Finish all jobs! Get %ld URLs in total!\n",totalNumOfJobsDone);
+  printf("Create %d on-demand threads in total. There are %d max concurrent threads!\n"
+    ,totalThreadsCreated,maxConcurrentThreads);
   //In real project, do free the memory and destroy mutexes and semaphores
   exit(0);
 }

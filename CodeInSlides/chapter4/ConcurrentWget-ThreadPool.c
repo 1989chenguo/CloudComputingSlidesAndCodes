@@ -9,7 +9,7 @@
 #include <time.h>
 #include <semaphore.h>
 
-#define MAX_CONCURRENT_INPUT_NUM 100
+#define MAX_CONCURRENT_INPUT_NUM 10000
 #define MAX_URL_LENGTH 1024
 
 #define OUTPUT_FOLDER_NAME "testOutput"
@@ -174,6 +174,7 @@ int main(int argc, char *argv[])
   
   waitForAllJobsDone(inJobQueue.inCount);
   printf("Finish all jobs! Get %ld URLs in total!\n",totalNumOfJobsDone);
+  printf("Use %d long-lived threads in total!\n",numOfWorkerThread);
   //In real project, do free the memory and destroy mutexes and semaphores
   exit(0);
 }
