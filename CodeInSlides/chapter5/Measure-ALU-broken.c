@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     double totalTime=time_diff(tvStart,tvEnd);
     double avgDelay=totalTime/RUN_TIMES;
     printf("[Pure loop: i=%d, res=%d] Total time %.3lf s, Average time is %.5lf us\n"
-      ,i,A,totalTime/1E6,avgDelay);
+      ,i,C,totalTime/1E6,avgDelay);
   }
 
   {
