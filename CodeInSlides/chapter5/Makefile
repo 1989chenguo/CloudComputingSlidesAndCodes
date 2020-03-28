@@ -17,7 +17,7 @@ CC = gcc
 CFLAGS = -O1 -pthread
 
 # the build target executable:
-TARGETS = Measure-mutex Measure-ALU
+TARGETS = Measure-mutex Measure-ALU Measure-ALU-broken
 
 all: $(TARGETS)
 
