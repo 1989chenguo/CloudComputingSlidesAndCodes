@@ -14,10 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 CC = gcc
-CFLAGS = -O2 -pthread
+CFLAGS = -O0 -pthread
 
 # the build target executable:
-TARGETS = Measure-ALU Measure-ALU-broken Measure-mutex-syscall Measure-mutex-CTXswitch 
+TARGETS = Measure-ALU Measure-ALU-broken Measure-ALU-broken-simplified Measure-mutex-syscall Measure-mutex-CTXswitch 
 
 all: $(TARGETS)
 

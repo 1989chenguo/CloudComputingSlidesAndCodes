@@ -1,5 +1,5 @@
 
-Measure-ALU:     file format elf64-x86-64
+Measure-ALU-broken-simplified:     file format elf64-x86-64
 
 
 Disassembly of section .init:
@@ -113,25 +113,26 @@ Disassembly of section .text:
  5f5:	e9 66 ff ff ff       	jmpq   560 <register_tm_clones>
 
 00000000000005fa <main>:
- 5fa:	55                   	push   %rbp
- 5fb:	48 89 e5             	mov    %rsp,%rbp
- 5fe:	89 7d ec             	mov    %edi,-0x14(%rbp)
- 601:	48 89 75 e0          	mov    %rsi,-0x20(%rbp)
- 605:	c7 45 f4 03 00 00 00 	movl   $0x3,-0xc(%rbp)
- 60c:	c7 45 f8 01 00 00 00 	movl   $0x1,-0x8(%rbp)
- 613:	c7 45 f0 00 00 00 00 	movl   $0x0,-0x10(%rbp)
- 61a:	eb 0f                	jmp    62b <main+0x31>
- 61c:	8b 55 f4             	mov    -0xc(%rbp),%edx
- 61f:	8b 45 f8             	mov    -0x8(%rbp),%eax
- 622:	01 d0                	add    %edx,%eax
- 624:	89 45 fc             	mov    %eax,-0x4(%rbp)
- 627:	83 45 f0 01          	addl   $0x1,-0x10(%rbp)
- 62b:	81 7d f0 7f 96 98 00 	cmpl   $0x98967f,-0x10(%rbp)
- 632:	7e e8                	jle    61c <main+0x22>
- 634:	b8 00 00 00 00       	mov    $0x0,%eax
- 639:	5d                   	pop    %rbp
- 63a:	c3                   	retq   
- 63b:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)
+ 5fa:	b8 00 ca 9a 3b       	mov    $0x3b9aca00,%eax
+ 5ff:	83 e8 01             	sub    $0x1,%eax
+ 602:	75 fb                	jne    5ff <main+0x5>
+ 604:	b8 00 ca 9a 3b       	mov    $0x3b9aca00,%eax
+ 609:	83 e8 01             	sub    $0x1,%eax
+ 60c:	75 fb                	jne    609 <main+0xf>
+ 60e:	b8 00 ca 9a 3b       	mov    $0x3b9aca00,%eax
+ 613:	83 e8 01             	sub    $0x1,%eax
+ 616:	75 fb                	jne    613 <main+0x19>
+ 618:	b8 00 ca 9a 3b       	mov    $0x3b9aca00,%eax
+ 61d:	83 e8 01             	sub    $0x1,%eax
+ 620:	75 fb                	jne    61d <main+0x23>
+ 622:	b8 00 ca 9a 3b       	mov    $0x3b9aca00,%eax
+ 627:	83 e8 01             	sub    $0x1,%eax
+ 62a:	75 fb                	jne    627 <main+0x2d>
+ 62c:	b8 00 00 00 00       	mov    $0x0,%eax
+ 631:	c3                   	retq   
+ 632:	66 2e 0f 1f 84 00 00 	nopw   %cs:0x0(%rax,%rax,1)
+ 639:	00 00 00 
+ 63c:	0f 1f 40 00          	nopl   0x0(%rax)
 
 0000000000000640 <__libc_csu_init>:
  640:	41 57                	push   %r15
