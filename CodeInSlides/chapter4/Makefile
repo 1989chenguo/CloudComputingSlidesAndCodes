@@ -22,7 +22,7 @@ TARGETS = ATMProblemShow ATMProblemShow-mutex \
 BoundedBuffer-mutex BoundedBuffer-semaphore BoundedBuffer-monitor BoundedBuffer-monitor-mesatest \
 Deadlock PreAssignJob DynamicAssignJob HomoThreads HeteroThreads \
 ConcurrentWget-ThreadPool ConcurrentWget-OnDemand \
-ConcurrentQuickSort-Recursive ConcurrentQuickSort-Iteration
+ConcurrentQuickSort-Recursive-broken ConcurrentQuickSort-Recursive ConcurrentQuickSort-Iteration
 
 all: $(TARGETS)
 

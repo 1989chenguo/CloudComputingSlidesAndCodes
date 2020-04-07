@@ -10,8 +10,6 @@
 
 #define IF_PRINT_DEBUG 0
 
-#define MIN_ARRAY_LEN_FOR_CREATE_A_THREAD_TO_SORT 100000
-#define MAX_CONCURRENT_THREAD_NUM 1000
 int concurrentThreadNum=0;
 int maxConcurrentThreadNumEverAppeared=0;
 int totalThreadCreated=0;
@@ -116,38 +114,45 @@ void QuickSortSequential(int* array, int left, int right)
   QuickSortSequential(array,index+1,right);
 }
 
+void* QuickSortSequentialThread(void* args)
+{
+  SortArgs* para = (SortArgs*) args;
+  int *array=para->array;
+  int left=para->left;
+  int right=para->right;
+  free(para);
+
+  // printf("QuickSortSequentialThread: left %d, right %d\n",left,right);
+  
+  if(left >= right)
+      return NULL;
+
+  int index = PartSort(array,left,right);
+  
+  QuickSortSequential(array,left,index-1);
+  QuickSortSequential(array,index+1,right);
+}
+
+
 //Do not create thread if there are too many concurrent threads
 //Return 1 if create new thread, else return 0
 int createAThreadToQuickSort(int *array, int left, int right, pthread_t *th)
 {
   int re=0;
-  pthread_mutex_lock(&threadNumMutex);
-  if(concurrentThreadNum<MAX_CONCURRENT_THREAD_NUM 
-    && right-left>=MIN_ARRAY_LEN_FOR_CREATE_A_THREAD_TO_SORT)
-  {
-    totalThreadCreated++;
-    concurrentThreadNum++;
-    if(concurrentThreadNum>maxConcurrentThreadNumEverAppeared)
-      maxConcurrentThreadNumEverAppeared=concurrentThreadNum;
-    if(IF_PRINT_DEBUG)
-      printf("Create thread [%d] to sort[%d-%d]\n",totalThreadCreated,left,right);
-    pthread_mutex_unlock(&threadNumMutex);
 
-    SortArgs *sortPara = malloc(sizeof(SortArgs));
-    sortPara->array=array;
-    sortPara->left=left;
-    sortPara->right=right;
-    if(pthread_create(th, NULL, QuickSortParallel, sortPara)!=0)
-    {
-      perror("pthread_create failed");
-      exit(1);
-    }
-    re=1;
+  SortArgs *sortPara = malloc(sizeof(SortArgs));
+  sortPara->array=array;
+  sortPara->left=left;
+  sortPara->right=right;
+  if(pthread_create(th, NULL, QuickSortParallel, sortPara)!=0)
+  // if(pthread_create(th, NULL, QuickSortSequentialThread, sortPara)!=0)
+  {
+    QuickSortSequential(array,left,right);
+    re=0;
   }
   else
   {
-    pthread_mutex_unlock(&threadNumMutex);
-    QuickSortSequential(array,left,right);
+    re=1;
   }
   return re;
 }
@@ -183,8 +188,7 @@ void doSortTest(int sortArrayLen, int runTimes, int ifSequential)//ifSequential 
       sortPara->left=0;
       sortPara->right=sortArrayLen-1;
       QuickSortParallel(sortPara);
-      printf("RUN[%d] Parallel sort done. Create %d threads in total. The max concurrency ever appeared is %d. "
-        ,n,totalThreadCreated,maxConcurrentThreadNumEverAppeared);
+      printf("RUN[%d] Parallel sort done. ",n);
     } 
     else {
       QuickSortSequential(array,0,sortArrayLen-1);

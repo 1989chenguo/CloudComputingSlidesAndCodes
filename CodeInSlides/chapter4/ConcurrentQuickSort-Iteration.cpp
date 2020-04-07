@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
     int sortArrayLen=10000000;
     if(argc>=2)
       sortArrayLen=atoi(argv[1]);
-    int sortTimes=20;
+    int sortTimes=1;
     if(argc>=3)
       sortTimes=atoi(argv[2]);
 

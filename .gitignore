@@ -29,3 +29,9 @@
 /CodeInSlides/chapter5/Measure-mutex-CTXswitch
 /CodeInSlides/chapter5/Measure-mutex-syscall
 /CodeInSlides/chapter5/Measure-ALU-broken-simplified
+/CodeInSlides/chapter4/*.data
+/CodeInSlides/chapter5/PrintToMonitor
+/CodeInSlides/miscellaneous/multipipe-popen/multipipe-popen
+/CodeInSlides/miscellaneous/multipipe-popen/testProgram
+/CodeInSlides/chapter4/*.old
+/CodeInSlides/chapter4/ConcurrentQuickSort-Recursive-broken
