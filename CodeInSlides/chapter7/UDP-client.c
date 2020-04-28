@@ -59,5 +59,6 @@ int main(int argc, char *argv[])
     totalSentTimes++;
   }
 
+  close(client_sockfd);
   return 0;
 }

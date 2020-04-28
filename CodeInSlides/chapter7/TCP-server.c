@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 
   int sin_size=sizeof(struct sockaddr_in);
   struct sockaddr_in remote_addr;
-  listen(server_sockfd,1024);
+  listen(server_sockfd,5);
   if((client_sockfd=accept(server_sockfd,(struct sockaddr *)&remote_addr,&sin_size))<0)
   {
     perror("Error: accept");
@@ -61,11 +61,16 @@ int main(int argc, char *argv[])
   {
     // usleep(1000);
     memset(buf,0,BUFSIZ*sizeof(buf[0]));
-    len = recv(server_sockfd,buf,BUFSIZ,0);
-    if(len<=0)
+    len = recv(client_sockfd,buf,BUFSIZ,0);
+    if(len<0)
     {
       printf("recvfrom failed!\n");
-      exit(1);
+      break;
+    }
+    if(len==0)
+    {
+      printf("recvfrom done!\n");
+      break;
     }
 
     printf("[%4d] Received %d B: ",totalReceivedTimes,len);
@@ -76,6 +81,7 @@ int main(int argc, char *argv[])
     totalReceivedTimes++;
   }
 
+  close(client_sockfd);
   close(server_sockfd);
 
   return 0;

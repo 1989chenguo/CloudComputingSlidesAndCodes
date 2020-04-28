@@ -41,13 +41,13 @@ int main(int argc, char *argv[])
   int len=0;
   while(1)
   {
-    usleep(1000);
+    // usleep(1000);
     memset(buf,0,BUFSIZ*sizeof(buf[0]));
     len = recvfrom(server_sockfd,buf,BUFSIZ,0,NULL,NULL);
     if(len<0)
     {
       printf("recvfrom failed!\n");
-      exit(1);
+      break;
     }
 
     printf("[%4d] Received %d B: ",totalReceivedTimes,len);

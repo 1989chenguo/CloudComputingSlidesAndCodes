@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
   remote_addr.sin_port=htons(port);
   int sentTimes=atoi(argv[3]);
 
-  if((client_sockfd=socket(AF_INET,SOCK_DGRAM,0))<0)
+  if((client_sockfd=socket(AF_INET,SOCK_STREAM,0))<0)
   {
     perror("socket");
     return 1;
@@ -70,5 +70,6 @@ int main(int argc, char *argv[])
     totalSentTimes++;
   }
 
+  close(client_sockfd);
   return 0;
 }
