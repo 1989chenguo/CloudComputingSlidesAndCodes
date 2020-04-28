@@ -147,11 +147,13 @@ int createAThreadToQuickSort(int *array, int left, int right, pthread_t *th)
   if(pthread_create(th, NULL, QuickSortParallel, sortPara)!=0)
   // if(pthread_create(th, NULL, QuickSortSequentialThread, sortPara)!=0)
   {
+    //Cannot create thread, sort sequentially
     QuickSortSequential(array,left,right);
     re=0;
   }
   else
   {
+    //Create a thread, return 1 so the outer function will wait me
     re=1;
   }
   return re;

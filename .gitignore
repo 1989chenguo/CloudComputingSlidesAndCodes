@@ -35,3 +35,5 @@
 /CodeInSlides/miscellaneous/multipipe-popen/testProgram
 /CodeInSlides/chapter4/*.old
 /CodeInSlides/chapter4/ConcurrentQuickSort-Recursive-broken
+/CodeInSlides/chapter7/UDP-client
+/CodeInSlides/chapter7/UDP-server
