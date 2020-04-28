@@ -41,6 +41,7 @@ int main(int argc, char *argv[])
   char bufSent[MAX_DATAGRAM_SIZE];
   int totalSentTimes=0;
   int bytesToSend=0;
+  int totalSentBytes=0;
   while(1)
   {
     usleep(1000);
@@ -51,12 +52,13 @@ int main(int argc, char *argv[])
     bytesToSend=strlen(bufSent);
     sendto(client_sockfd,bufSent,bytesToSend,0,(struct sockaddr*)&remote_addr,sizeof(remote_addr));
 
-    printf("[%4d] Sent %d B: ",totalSentTimes,bytesToSend);
+    printf("[%4d, %8d] Sent: ",totalSentTimes,totalSentBytes);
     for(int i=0;i<bytesToSend;i++)
       printf("%c",bufSent[i]);
     printf("\n");
 
     totalSentTimes++;
+    totalSentBytes=totalSentBytes+bytesToSend;
   }
 
   close(client_sockfd);

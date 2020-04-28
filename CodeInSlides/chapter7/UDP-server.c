@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
   char buf[BUFSIZ];
   int totalReceivedTimes=0;
   int len=0;
+  int totalReceivedBytes=0;
   while(1)
   {
     // usleep(1000);
@@ -50,12 +51,13 @@ int main(int argc, char *argv[])
       break;
     }
 
-    printf("[%4d] Received %d B: ",totalReceivedTimes,len);
+    printf("[%4d, %8d] Received: ",totalReceivedTimes,totalReceivedBytes);
     for(int i=0;i<len;i++)
       printf("%c",buf[i]);
     printf("\n");
 
     totalReceivedTimes++;
+    totalReceivedBytes=totalReceivedBytes+len;
   }
 
   close(server_sockfd);
