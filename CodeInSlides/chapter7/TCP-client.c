@@ -38,6 +38,13 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  if(connect(client_sockfd,(const struct sockaddr *)&remote_addr,sizeof(remote_addr))<0)
+  {
+    perror("connect");
+    return 1;
+  }
+  printf("connected to server %s\n",inet_ntoa(remote_addr.sin_addr));
+
   char bufSent[MAX_DATAGRAM_SIZE];
   int totalSentTimes=0;
   int bytesToSend=0;
@@ -49,7 +56,11 @@ int main(int argc, char *argv[])
     memset(bufSent,0,MAX_DATAGRAM_SIZE*sizeof(bufSent[0]));
     sprintf(bufSent,"*%d*",totalSentTimes);
     bytesToSend=strlen(bufSent);
-    sendto(client_sockfd,bufSent,bytesToSend,0,(struct sockaddr*)&remote_addr,sizeof(remote_addr));
+    if(send(client_sockfd,bufSent,bytesToSend,0)<0)
+    {
+      perror("TCP send");
+      return 1;
+    }
 
     printf("[%4d] Sent %d B: ",totalSentTimes,bytesToSend);
     for(int i=0;i<bytesToSend;i++)

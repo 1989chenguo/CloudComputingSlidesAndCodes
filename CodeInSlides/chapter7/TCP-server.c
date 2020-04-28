@@ -23,12 +23,20 @@ int main(int argc, char *argv[])
   my_addr.sin_addr.s_addr=INADDR_ANY;
   my_addr.sin_port=htons(port);
 
-  int server_sockfd;//UDP server socket
-  if((server_sockfd=socket(AF_INET,SOCK_DGRAM,0))<0)
+  int server_sockfd;
+  int client_sockfd;
+  if((server_sockfd=socket(AF_INET,SOCK_STREAM,0))<0)
   {  
     perror("socket");
     return 1;
   }
+
+  int on=1;  
+  if((setsockopt(server_sockfd,SOL_SOCKET,SO_REUSEADDR,&on,sizeof(on)))<0)  
+  {  
+      perror("setsockopt failed");  
+      return 1;  
+  }  
   
   if (bind(server_sockfd,(struct sockaddr *)&my_addr,sizeof(my_addr))<0)
   {
@@ -36,15 +44,25 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  int sin_size=sizeof(struct sockaddr_in);
+  struct sockaddr_in remote_addr;
+  listen(server_sockfd,1024);
+  if((client_sockfd=accept(server_sockfd,(struct sockaddr *)&remote_addr,&sin_size))<0)
+  {
+    perror("Error: accept");
+    return 1;
+  }
+  printf("accept client %s\n",inet_ntoa(remote_addr.sin_addr));
+
   char buf[BUFSIZ];
   int totalReceivedTimes=0;
   int len=0;
   while(1)
   {
-    usleep(1000);
+    // usleep(1000);
     memset(buf,0,BUFSIZ*sizeof(buf[0]));
-    len = recvfrom(server_sockfd,buf,BUFSIZ,0,NULL,NULL);
-    if(len<0)
+    len = recv(server_sockfd,buf,BUFSIZ,0);
+    if(len<=0)
     {
       printf("recvfrom failed!\n");
       exit(1);
