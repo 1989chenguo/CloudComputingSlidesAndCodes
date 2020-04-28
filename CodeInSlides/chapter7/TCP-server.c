@@ -83,6 +83,7 @@ int main(int argc, char *argv[])
     totalReceivedBytes=totalReceivedBytes+len;
   }
 
+  printf("Received %d B in total!\n",totalReceivedBytes);
   close(client_sockfd);
   close(server_sockfd);
 

@@ -72,6 +72,7 @@ int main(int argc, char *argv[])
     totalSentBytes=totalSentBytes+bytesToSend;
   }
 
+  printf("Sent %d B in total!\n",totalSentBytes);
   close(client_sockfd);
   return 0;
 }
