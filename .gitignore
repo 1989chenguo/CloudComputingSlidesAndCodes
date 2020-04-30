@@ -45,3 +45,5 @@
 /CodeInSlides/chapter7/TCP-server-thread-write
 /CodeInSlides/chapter7/TCP-client-thread-recv
 /CodeInSlides/chapter7/TCP-server-thread-recv
+/CodeInSlides/chapter7/TCP-client-thread-send
+/CodeInSlides/chapter7/TCP-server-thread-send

@@ -50,7 +50,8 @@ void* sendRequest(void* args)
         fprintf(stderr, "%s\n", "ERROR: This request has been over sent!");
         exit(1);
       }
-      len=write(sock,(char *)&dInfo+sentBytesForThisRequest,requestBytes-sentBytesForThisRequest);
+      // len=write(sock,(char *)&dInfo+sentBytesForThisRequest,requestBytes-sentBytesForThisRequest);
+      len=send(sock,(char *)&dInfo+sentBytesForThisRequest,requestBytes-sentBytesForThisRequest,0);
       if(len<0)
       {
         perror("TCP send");

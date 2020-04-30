@@ -52,6 +52,7 @@ void* recvRequest(void* args)
         fprintf(stderr, "%s\n", "ERROR: This request has been over received!");
         exit(1);
       }
+      // len=read(sock,(char *)&(dInfo[totalRequestNum])+receivedBytesForThisRequest,requestBytes-receivedBytesForThisRequest);
       len=recv(sock,(char *)&(dInfo[totalRequestNum])+receivedBytesForThisRequest,requestBytes-receivedBytesForThisRequest,0);
       if(len<=0) {
         for(int i=0;i<totalRequestNum;i++)
