@@ -14,34 +14,68 @@ typedef struct {
   int len;
 } DataInfo;
 
+int sendAllChunk(int sock, char* buf, int chunkSize)
+{
+  int sentBytes=0;
+  int len;
+  while(1) {
+    if(chunkSize-sentBytes==0)//This data chunk has all been sent
+      break;
+    len=send(sock,buf+sentBytes,chunkSize-sentBytes,0);
+    if(len<0)
+    {
+      perror("TCP send");
+      return -1;//Error
+    }
+    sentBytes=sentBytes+len;
+  }
+  return 0;//Success
+}
+
+int recvAllChunk(int sock, char* buf, int chunkSize)
+{
+  int receivedBytes=0;
+  int len;
+  while(1) {
+    if(chunkSize-receivedBytes==0)//This data chunk has all been received
+      break;
+    len=recv(sock,buf+receivedBytes,chunkSize-receivedBytes,0);
+    if(len<=0) {
+      perror("TCP recv");
+      return -1;//Error
+    } 
+    receivedBytes=receivedBytes+len;
+  }
+  return 0;//Success
+}
+
 void receiveData(int sock, int bytesToReceive)
 {
-  char *buf;
-  buf=malloc(bytesToReceive);
-  int totalReceivedTimes=0;
-  int len=0;
   int totalReceivedBytes=0;
+  int totalReceivedTimes=0;
+  char buf[BUFSIZ];
+  int chunkSize;
   while(1)
   {
-    if(bytesToReceive-totalReceivedBytes<=0)//All received
+    if(totalReceivedBytes>=bytesToReceive)
       break;
-
-    memset(buf,0,(bytesToReceive-totalReceivedBytes)*sizeof(buf[0]));
-    len = recv(sock,buf,bytesToReceive-totalReceivedBytes,0);
-    if(len<=0)
-      break;
+    if(bytesToReceive-totalReceivedBytes>=BUFSIZ)
+      chunkSize=BUFSIZ;
+    else
+      chunkSize=bytesToReceive-totalReceivedBytes;
+    if(recvAllChunk(sock,buf,chunkSize)==-1)
+      exit(1);
 
     printf("[%7d, %9d] Received: ",totalReceivedTimes,totalReceivedBytes);
-    for(int i=0;i<len;i++)
+    for(int i=0;i<chunkSize;i++)
       printf("%c",buf[i]);
     printf("\n");
 
     totalReceivedTimes++;
-    totalReceivedBytes=totalReceivedBytes+len;
+    totalReceivedBytes=totalReceivedBytes+chunkSize;
   }
 
   printf("Received %d B in total!\n",totalReceivedBytes);
-  free(buf);
 }
 
 int main(int argc, char *argv[])
@@ -91,19 +125,15 @@ int main(int argc, char *argv[])
 
 
   DataInfo dInfo;
-  if(recv(client_sockfd,&dInfo,sizeof(dInfo),0)<=0)
-    return 1;
+  if(recvAllChunk(client_sockfd,(char*)&dInfo,sizeof(dInfo))==-1)//Receive data header
+    exit(1);
 
   printf("Going to receive data(ID:%d, len:%d B)!\n",dInfo.ID,dInfo.len);
 
   receiveData(client_sockfd,dInfo.len);
 
-  char *doneMsg="Receiver done!";
-  if(send(client_sockfd,doneMsg,strlen(doneMsg),0)<0)
-  {
-    perror("TCP send");
+  if(sendAllChunk(client_sockfd,(char*)&dInfo,sizeof(dInfo))==-1)//Send data acknowledgment
     exit(1);
-  }
   
   close(client_sockfd);
   close(server_sockfd);

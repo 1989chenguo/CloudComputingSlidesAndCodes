@@ -9,16 +9,49 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_DATAGRAM_SIZE 1400
-
 typedef struct {
   int ID;
   int len;
 } DataInfo;
 
+int sendAllChunk(int sock, char* buf, int chunkSize)
+{
+  int sentBytes=0;
+  int len;
+  while(1) {
+    if(chunkSize-sentBytes==0)//This data chunk has all been sent
+      break;
+    len=send(sock,buf+sentBytes,chunkSize-sentBytes,0);
+    if(len<0)
+    {
+      perror("TCP send");
+      return -1;//Error
+    }
+    sentBytes=sentBytes+len;
+  }
+  return 0;//Success
+}
+
+int recvAllChunk(int sock, char* buf, int chunkSize)
+{
+  int receivedBytes=0;
+  int len;
+  while(1) {
+    if(chunkSize-receivedBytes==0)//This data chunk has all been received
+      break;
+    len=recv(sock,buf+receivedBytes,chunkSize-receivedBytes,0);
+    if(len<=0) {
+      perror("TCP recv");
+      return -1;//Error
+    } 
+    receivedBytes=receivedBytes+len;
+  }
+  return 0;//Success
+}
+
 void sendData(int sock, int sentTimes)
 {
-  char bufSent[MAX_DATAGRAM_SIZE];
+  char bufSent[BUFSIZ];
   int totalSentTimes=0;
   int bytesToSend=0;
   int totalSentBytes=0;
@@ -27,14 +60,12 @@ void sendData(int sock, int sentTimes)
     usleep(1000);
     if(totalSentTimes>=sentTimes)
       break;
-    memset(bufSent,0,MAX_DATAGRAM_SIZE*sizeof(bufSent[0]));
+    memset(bufSent,0,BUFSIZ*sizeof(bufSent[0]));
     sprintf(bufSent,"*%07d*",totalSentTimes);
     bytesToSend=strlen(bufSent);
-    if(send(sock,bufSent,bytesToSend,0)<0)
-    {
-      perror("TCP send");
+
+    if(sendAllChunk(sock,bufSent,bytesToSend)==-1)
       exit(1);
-    }
 
     printf("[%7d, %9d] Sent: ",totalSentTimes,totalSentBytes);
     for(int i=0;i<bytesToSend;i++)
@@ -84,25 +115,16 @@ int main(int argc, char *argv[])
   DataInfo dInfo;
   dInfo.ID=0;
   dInfo.len=sentTimes*9; //Each time sent 9 bytes
-
-  char buf[MAX_DATAGRAM_SIZE];
-  memset(buf,0,MAX_DATAGRAM_SIZE*sizeof(buf[0]));
-  memcpy(buf,&dInfo,sizeof(dInfo));
-  if(send(client_sockfd,buf,sizeof(dInfo),0)<0)
-  {
-    perror("TCP send");
+  if(sendAllChunk(client_sockfd,(char*)&dInfo,sizeof(dInfo))==-1)//Send data header
     exit(1);
-  }
 
   sendData(client_sockfd,sentTimes);
 
-  memset(buf,0,MAX_DATAGRAM_SIZE*sizeof(buf[0]));
-  if(recv(client_sockfd,buf,MAX_DATAGRAM_SIZE,0)>0)
-  {
-    printf("%s\n",buf);
-    printf("The receiver has successfully received data(ID:%d, len:%d B)!\n"
-      ,dInfo.ID,dInfo.len);
-  }
+  if(recvAllChunk(client_sockfd,(char*)&dInfo,sizeof(dInfo))==-1)//Receive data acknowledgment
+    exit(1);
+
+  printf("The receiver has successfully received data(ID:%d, len:%d B)!\n"
+    ,dInfo.ID,dInfo.len);
   
   close(client_sockfd);
   return 0;
