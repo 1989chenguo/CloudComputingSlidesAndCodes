@@ -10,8 +10,8 @@
 #include <unistd.h>
 
 typedef struct {
-  int ID;
-  int len;
+  int threadID;
+  int requestID;
   char padding[10240];
 } RequestInfo;
 
@@ -52,8 +52,8 @@ int main(int argc, char *argv[])
   for(int i=0;i<requestNum;i++) 
   {
     RequestInfo dInfo;
-    dInfo.ID=i;
-    dInfo.len=9; //Each time sent 9 bytes
+    dInfo.threadID=0;
+    dInfo.requestID=i;
     memset(dInfo.padding,'A',10240);
 
     if(send(client_sockfd,&dInfo,sizeof(dInfo),0)!=sizeof(dInfo))

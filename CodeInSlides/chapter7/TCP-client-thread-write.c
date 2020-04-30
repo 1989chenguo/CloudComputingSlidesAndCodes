@@ -46,7 +46,7 @@ void recvRequest(int sock)
       if(len<=0) {
         for(int i=0;i<totalRequestNum;i++)
         {
-          fprintf(fp,"request \t %07d \t %03d \t ",dInfo[i].threadID, dInfo[i].requestID);
+          fprintf(fp,"request \t %09d \t %09d \t ",dInfo[i].threadID, dInfo[i].requestID);
           for(int j=0;j<10240;j++)
             fprintf(fp,"%c",dInfo[i].padding[j]);
           fprintf(fp,"\n");

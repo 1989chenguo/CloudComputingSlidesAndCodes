@@ -18,8 +18,8 @@ typedef struct {
 } ThreadParas;
 
 typedef struct {
-  int ID;
-  int len;
+  int threadID;
+  int requestID;
   char padding[10240];
 } RequestInfo;
 
@@ -56,7 +56,7 @@ void* recvRequest(void* args)
       if(len<=0) {
         for(int i=0;i<totalRequestNum;i++)
         {
-          fprintf(fp,"request \t %07d \t %03d \t ",dInfo[i].ID, dInfo[i].len);
+          fprintf(fp,"request \t %09d \t %09d \t ",dInfo[i].threadID, dInfo[i].requestID);
           for(int j=0;j<10240;j++)
             fprintf(fp,"%c",dInfo[i].padding[j]);
           fprintf(fp,"\n");
