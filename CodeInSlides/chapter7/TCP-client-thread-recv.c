@@ -15,6 +15,43 @@ typedef struct {
   char padding[10240];
 } RequestInfo;
 
+int sendAllChunk(int sock, char* buf, int chunkSize)
+{
+  int sentBytes=0;
+  int len;
+  while(1) {
+    if(chunkSize-sentBytes==0)//This data chunk has all been sent
+      break;
+    // len=write(sock,buf+sentBytes,chunkSize-sentBytes);
+    len=send(sock,buf+sentBytes,chunkSize-sentBytes,0);
+    if(len<0)
+    {
+      perror("TCP send");
+      return -1;//Error
+    }
+    sentBytes=sentBytes+len;
+  }
+  return 0;//Success
+}
+
+int recvAllChunk(int sock, char* buf, int chunkSize)
+{
+  int receivedBytes=0;
+  int len;
+  while(1) {
+    if(chunkSize-receivedBytes==0)//This data chunk has all been received
+      break;
+    // len=read(sock,buf+receivedBytes,chunkSize-receivedBytes);
+    len=recv(sock,buf+receivedBytes,chunkSize-receivedBytes,0);
+    if(len<=0) {
+      perror("TCP recv");
+      return -1;//Error
+    } 
+    receivedBytes=receivedBytes+len;
+  }
+  return 0;//Success
+}
+
 int main(int argc, char *argv[])
 {
   if(argc!=4)
@@ -48,21 +85,16 @@ int main(int argc, char *argv[])
   }
   printf("connected to server %s\n",inet_ntoa(remote_addr.sin_addr));
 
-  
+  RequestInfo dInfo;
+  memset(dInfo.padding,'A',10240);
   for(int i=0;i<requestNum;i++) 
   {
-    RequestInfo dInfo;
+    
     dInfo.threadID=0;
     dInfo.requestID=i;
-    memset(dInfo.padding,'A',10240);
-
-    if(send(client_sockfd,&dInfo,sizeof(dInfo),0)!=sizeof(dInfo))
-    {
-      perror("TCP send");
+    if(sendAllChunk(client_sockfd,(char*)&dInfo,sizeof(dInfo))==-1)
       exit(1);
-    }
   }
-
   printf("Sent %d requests in total!\n",requestNum);
 
   close(client_sockfd);

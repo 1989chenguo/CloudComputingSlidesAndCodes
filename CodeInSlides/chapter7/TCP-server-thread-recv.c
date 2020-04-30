@@ -23,6 +23,43 @@ typedef struct {
   char padding[10240];
 } RequestInfo;
 
+int sendAllChunk(int sock, char* buf, int chunkSize)
+{
+  int sentBytes=0;
+  int len;
+  while(1) {
+    if(chunkSize-sentBytes==0)//This data chunk has all been sent
+      break;
+    // len=write(sock,buf+sentBytes,chunkSize-sentBytes);
+    len=send(sock,buf+sentBytes,chunkSize-sentBytes,0);
+    if(len<0)
+    {
+      perror("TCP send");
+      return -1;//Error
+    }
+    sentBytes=sentBytes+len;
+  }
+  return 0;//Success
+}
+
+int recvAllChunk(int sock, char* buf, int chunkSize)
+{
+  int receivedBytes=0;
+  int len;
+  while(1) {
+    if(chunkSize-receivedBytes==0)//This data chunk has all been received
+      break;
+    // len=read(sock,buf+receivedBytes,chunkSize-receivedBytes);
+    len=recv(sock,buf+receivedBytes,chunkSize-receivedBytes,0);
+    if(len<=0) {
+      perror("TCP recv");
+      return -1;//Error
+    } 
+    receivedBytes=receivedBytes+len;
+  }
+  return 0;//Success
+}
+
 void* recvRequest(void* args)
 {
   ThreadParas* para = (ThreadParas*) args;
@@ -39,38 +76,22 @@ void* recvRequest(void* args)
   }
   int totalRequestNum=0;
   RequestInfo* dInfo=malloc(MAX_REQUEST_BUFFER_LEN*sizeof(RequestInfo));
-  int requestBytes=sizeof(RequestInfo);
-  int receivedBytesForThisRequest;
-  int len;
   while(1) {
-    receivedBytesForThisRequest=0;
-    while(1) {
-      if(requestBytes-receivedBytesForThisRequest==0)//This request has been received
-        break;
-      if(requestBytes-receivedBytesForThisRequest<0)//This request has been over received
-      {
-        fprintf(stderr, "%s\n", "ERROR: This request has been over received!");
-        exit(1);
-      }
-      // len=read(sock,(char *)&(dInfo[totalRequestNum])+receivedBytesForThisRequest,requestBytes-receivedBytesForThisRequest);
-      len=recv(sock,(char *)&(dInfo[totalRequestNum])+receivedBytesForThisRequest,requestBytes-receivedBytesForThisRequest,0);
-      if(len<=0) {
-        for(int i=0;i<totalRequestNum;i++)
-        {
-          fprintf(fp,"request \t %09d \t %09d \t ",dInfo[i].threadID, dInfo[i].requestID);
-          for(int j=0;j<10240;j++)
-            fprintf(fp,"%c",dInfo[i].padding[j]);
-          fprintf(fp,"\n");
-        }
-        fflush(fp);
-        para->receivedNum=totalRequestNum;
-        printf("(thread %3d) Received %d requests!\n",threadID,totalRequestNum);
-        return NULL;
-      }
-      receivedBytesForThisRequest=receivedBytesForThisRequest+len;
-    }
+    if(recvAllChunk(sock,(char*)&(dInfo[totalRequestNum]),sizeof(RequestInfo))==-1)
+      break;
     totalRequestNum++;
   }
+  for(int i=0;i<totalRequestNum;i++)
+  {
+    fprintf(fp,"request \t %09d \t %09d \t ",dInfo[i].threadID, dInfo[i].requestID);
+    for(int j=0;j<10240;j++)
+      fprintf(fp,"%c",dInfo[i].padding[j]);
+    fprintf(fp,"\n");
+  }
+  fflush(fp);
+  para->receivedNum=totalRequestNum;
+  printf("(thread %3d) Received %d requests!\n",threadID,totalRequestNum);
+  return NULL;
 }
 
 
