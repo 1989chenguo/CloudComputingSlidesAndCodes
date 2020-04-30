@@ -41,3 +41,5 @@
 /CodeInSlides/chapter7/TCP-server
 /CodeInSlides/chapter7/TCP-client-reliable
 /CodeInSlides/chapter7/TCP-server-reliable
+/CodeInSlides/chapter7/TCP-client-thread-write
+/CodeInSlides/chapter7/TCP-server-thread-write
