@@ -9,43 +9,63 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_DATAGRAM_SIZE 1400
+#define MAX_REQUEST_BUFFER_LEN 100000
 
-void receiveData(int sock, int bytesToReceive)
+typedef struct {
+  int threadID;
+  int requestID;
+  char padding[10240];
+} RequestInfo;
+
+void recvRequest(int sock)
 {
-  char *buf;
-  buf=malloc(bytesToReceive);
-  int totalReceivedTimes=0;
-  int len=0;
-  int totalReceivedBytes=0;
-  while(1)
+  char fileName[128]={0};
+  sprintf(fileName,"thread%03d.log",0);
+  FILE *fp;
+  if((fp = fopen(fileName,"w"))==NULL)
   {
-    if(bytesToReceive-totalReceivedBytes<=0)//All received
-      break;
-
-    memset(buf,0,(bytesToReceive-totalReceivedBytes)*sizeof(buf[0]));
-    len = read(sock,buf,bytesToReceive-totalReceivedBytes);
-    if(len<=0)
-      break;
-
-    // printf("[%7d, %9d] Received: ",totalReceivedTimes,totalReceivedBytes);
-    // for(int i=0;i<len;i++)
-    //   printf("%c",buf[i]);
-    // printf("\n");
-
-    totalReceivedTimes++;
-    totalReceivedBytes=totalReceivedBytes+len;
+    perror("fopen ERROR!");
+    exit(1);
   }
-
-  printf("\n\nReceived %d B in total!\n",totalReceivedBytes);
-  free(buf);
+  int totalRequestNum=0;
+  RequestInfo* dInfo=malloc(MAX_REQUEST_BUFFER_LEN*sizeof(RequestInfo));
+  int requestBytes=sizeof(RequestInfo);
+  int receivedBytesForThisRequest;
+  int len;
+  while(1) {
+    receivedBytesForThisRequest=0;
+    while(1) {
+      if(requestBytes-receivedBytesForThisRequest==0)//This request has been received
+        break;
+      if(requestBytes-receivedBytesForThisRequest<0)//This request has been over received
+      {
+        fprintf(stderr, "%s\n", "ERROR: This request has been over received!");
+        exit(1);
+      }
+      len=recv(sock,(char *)&(dInfo[totalRequestNum])+receivedBytesForThisRequest,requestBytes-receivedBytesForThisRequest,0);
+      if(len<=0) {
+        for(int i=0;i<totalRequestNum;i++)
+        {
+          fprintf(fp,"request \t %07d \t %03d \t ",dInfo[i].threadID, dInfo[i].requestID);
+          for(int j=0;j<10240;j++)
+            fprintf(fp,"%c",dInfo[i].padding[j]);
+          fprintf(fp,"\n");
+        }
+        fflush(fp);
+        printf("Received %d requests in total!\n",totalRequestNum);
+        return;
+      }
+      receivedBytesForThisRequest=receivedBytesForThisRequest+len;
+    }
+    totalRequestNum++;
+  }
 }
 
 int main(int argc, char *argv[])
 {
-  if(argc!=4)
+  if(argc!=3)
   {
-    printf("usage: %s destIP port bytesToReceive\n",argv[0]);
+    printf("usage: %s destIP port\n",argv[0]);
     exit(1);
   }
   int client_sockfd;
@@ -60,7 +80,6 @@ int main(int argc, char *argv[])
   remote_addr.sin_addr=server_addr;
   int port=atoi(argv[2]);
   remote_addr.sin_port=htons(port);
-  int bytesToReceive=atoi(argv[3]);
 
   if((client_sockfd=socket(AF_INET,SOCK_STREAM,0))<0)
   {
@@ -75,7 +94,7 @@ int main(int argc, char *argv[])
   }
   printf("connected to server %s\n",inet_ntoa(remote_addr.sin_addr));
 
-  receiveData(client_sockfd,bytesToReceive);
+  recvRequest(client_sockfd);
 
   close(client_sockfd);
   return 0;

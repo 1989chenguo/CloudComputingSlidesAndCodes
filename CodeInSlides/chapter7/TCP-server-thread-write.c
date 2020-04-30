@@ -9,59 +9,70 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_DATAGRAM_SIZE 1400
+typedef struct {
+  int threadID;
+  int requestID;
+  char padding[10240];
+} RequestInfo;
+
 
 typedef struct {
   int threadID;
-  int sentTimes;
+  int sentRequestNum;
   int sock;
 } ThreadParas;
 
-void* sendData(void* args)
+void* sendRequest(void* args)
 {
   ThreadParas* para = (ThreadParas*) args;
-  int sentTimes=para->sentTimes;
+  int sentRequestNum=para->sentRequestNum;
   int threadID=para->threadID;
   int sock=para->sock;
-  char bufSent[MAX_DATAGRAM_SIZE];
-  int totalSentTimes=0;
-  int bytesToSend=0;
-  int totalSentBytes=0;
+  
+  int totalRequestNum=0;
+  RequestInfo dInfo;
+  memset(dInfo.padding,'A',10240);
+  int requestBytes=sizeof(RequestInfo);
+  int sentBytesForThisRequest;
+  int len;
   while(1)
   {
-    // usleep(1000);
-    if(totalSentTimes>=sentTimes)
+    if(totalRequestNum>=sentRequestNum)
       break;
-    memset(bufSent,0,MAX_DATAGRAM_SIZE*sizeof(bufSent[0]));
-    sprintf(bufSent,"(thread %3d) *%07d%s*\n",threadID,totalSentTimes,"abcdefghijklmn");
-    bytesToSend=strlen(bufSent);
-    if(write(sock,bufSent,bytesToSend)<0)
-    {
-      perror("TCP send");
-      exit(1);
+    dInfo.threadID=threadID;
+    dInfo.requestID=totalRequestNum; //Each time sent 9 bytes
+    sentBytesForThisRequest=0;
+    while(1) {
+      if(requestBytes-sentBytesForThisRequest==0)//This request has been sent
+        break;
+      if(requestBytes-sentBytesForThisRequest<0)//This request has been over sent
+      {
+        fprintf(stderr, "%s\n", "ERROR: This request has been over sent!");
+        exit(1);
+      }
+      len=write(sock,(char *)&dInfo+sentBytesForThisRequest,requestBytes-sentBytesForThisRequest);
+      if(len<0)
+      {
+        perror("TCP send");
+        exit(1);
+      }
+      sentBytesForThisRequest=sentBytesForThisRequest+len;
     }
-
-    // printf("(thread %3d) [%7d, %9d] Sent: ",threadID,totalSentTimes,totalSentBytes);
-    // for(int i=0;i<bytesToSend;i++)
-    //   printf("%c",bufSent[i]);
-    // printf("\n");
-
-    totalSentTimes++;
-    totalSentBytes=totalSentBytes+bytesToSend;
+    totalRequestNum++;
   }
-  printf("(thread %3d) Sent %d B in total!\n",threadID,totalSentBytes);
+  printf("(thread %3d) Sent %d requests!\n",threadID,totalRequestNum);
 }
 
 int main(int argc, char *argv[])
 {
   if(argc!=4)
   {
-    printf("usage: %s port threadNum sentTimes\n",argv[0]);
+    printf("usage: %s port threadNum sentRequestNum\n",argv[0]);
     return 1;
   }
   int port=atoi(argv[1]);
   int threadNum=atoi(argv[2]);
-  int sentTimes=atoi(argv[3]);
+  int sentRequestNum=atoi(argv[3]);
 
   struct sockaddr_in my_addr; 
   my_addr.sin_family=AF_INET;
@@ -104,9 +115,9 @@ int main(int argc, char *argv[])
   for(int i=0;i<threadNum;i++)
   {
     para[i].threadID=i;
-    para[i].sentTimes=sentTimes;
+    para[i].sentRequestNum=sentRequestNum;
     para[i].sock=client_sockfd;
-    if(pthread_create(&th[i], NULL, sendData, &para[i])!=0)
+    if(pthread_create(&th[i], NULL, sendRequest, &para[i])!=0)
     {
       perror("pthread_create failed");
       exit(1);
@@ -114,6 +125,13 @@ int main(int argc, char *argv[])
   }
   for(int i=0;i<threadNum;i++)
     pthread_join(th[i], NULL);
+
+  int totalRequestNum=0;
+  for(int i=0;i<threadNum;i++)
+  {
+    totalRequestNum=totalRequestNum+para[i].sentRequestNum;
+  }
+  printf("Sent %d requests in total!\n",totalRequestNum);
   
   close(client_sockfd);
   close(server_sockfd);
