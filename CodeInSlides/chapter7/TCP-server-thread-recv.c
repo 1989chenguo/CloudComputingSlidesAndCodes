@@ -9,6 +9,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#define MAX_REQUEST_BUFFER_LEN 100000
+
 typedef struct {
   int threadID;
   int sock;
@@ -18,6 +20,7 @@ typedef struct {
 typedef struct {
   int ID;
   int len;
+  char padding[10240];
 } RequestInfo;
 
 void* recvRequest(void* args)
@@ -26,7 +29,6 @@ void* recvRequest(void* args)
   int threadID=para->threadID;
   int sock=para->sock;
 
-  RequestInfo dInfo;
   char fileName[128]={0};
   sprintf(fileName,"thread%03d.log",threadID);
   FILE *fp;
@@ -36,17 +38,38 @@ void* recvRequest(void* args)
     exit(1);
   }
   int totalRequestNum=0;
+  RequestInfo* dInfo=malloc(MAX_REQUEST_BUFFER_LEN*sizeof(RequestInfo));
+  int requestBytes=sizeof(RequestInfo);
+  int receivedBytesForThisRequest;
+  int len;
   while(1) {
-    if(recv(sock,&dInfo,sizeof(dInfo),0)<=0) {
-      break;
+    receivedBytesForThisRequest=0;
+    while(1) {
+      if(requestBytes-receivedBytesForThisRequest==0)//This request has been received
+        break;
+      if(requestBytes-receivedBytesForThisRequest<0)//This request has been over received
+      {
+        fprintf(stderr, "%s\n", "ERROR: This request has been over received!");
+        exit(1);
+      }
+      len=recv(sock,(char *)&(dInfo[totalRequestNum])+receivedBytesForThisRequest,requestBytes-receivedBytesForThisRequest,0);
+      if(len<=0) {
+        for(int i=0;i<totalRequestNum;i++)
+        {
+          fprintf(fp,"request \t %d \t %d \t ",dInfo[i].ID, dInfo[i].len);
+          for(int j=0;j<10240;j++)
+            fprintf(fp,"%c",dInfo[i].padding[j]);
+          fprintf(fp,"\n");
+        }
+        fflush(fp);
+        para->receivedNum=totalRequestNum;
+        printf("(thread %3d) Received %d requests!\n",threadID,totalRequestNum);
+        return NULL;
+      }
+      receivedBytesForThisRequest=receivedBytesForThisRequest+len;
     }
     totalRequestNum++;
-    fprintf(fp,"request (%07d, %d)\n",dInfo.ID, dInfo.len);
   }
-  fflush(fp);
-
-  para->receivedNum=totalRequestNum;
-  printf("(thread %3d) Received %d requests!\n",threadID,totalRequestNum);
 }
 
 

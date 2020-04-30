@@ -9,11 +9,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_DATAGRAM_SIZE 1400
-
 typedef struct {
   int ID;
   int len;
+  char padding[10240];
 } RequestInfo;
 
 int main(int argc, char *argv[])
@@ -55,11 +54,9 @@ int main(int argc, char *argv[])
     RequestInfo dInfo;
     dInfo.ID=i;
     dInfo.len=9; //Each time sent 9 bytes
+    memset(dInfo.padding,'A',10240);
 
-    char buf[MAX_DATAGRAM_SIZE];
-    memset(buf,0,MAX_DATAGRAM_SIZE*sizeof(buf[0]));
-    memcpy(buf,&dInfo,sizeof(dInfo));
-    if(send(client_sockfd,buf,sizeof(dInfo),0)<0)
+    if(send(client_sockfd,&dInfo,sizeof(dInfo),0)!=sizeof(dInfo))
     {
       perror("TCP send");
       exit(1);
@@ -67,7 +64,7 @@ int main(int argc, char *argv[])
   }
 
   printf("Sent %d requests in total!\n",requestNum);
-  
+
   close(client_sockfd);
   return 0;
 }
