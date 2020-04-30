@@ -18,7 +18,7 @@ CFLAGS = -O2 -pthread
 
 # the build target executable:
 TARGETS = UDP-server UDP-client TCP-server TCP-client TCP-server-reliable TCP-client-reliable\
-TCP-server-thread-write TCP-client-thread-write
+TCP-server-thread-write TCP-client-thread-write TCP-server-thread-recv TCP-client-thread-recv
 
 all: $(TARGETS)
 
