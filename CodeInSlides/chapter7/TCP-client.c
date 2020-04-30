@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     if(totalSentTimes>=sentTimes)
       break;
     memset(bufSent,0,MAX_DATAGRAM_SIZE*sizeof(bufSent[0]));
-    sprintf(bufSent,"*%d*",totalSentTimes);
+    sprintf(bufSent,"*%07d*",totalSentTimes);
     bytesToSend=strlen(bufSent);
     if(send(client_sockfd,bufSent,bytesToSend,0)<0)
     {
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
       return 1;
     }
 
-    printf("[%4d, %8d] Sent: ",totalSentTimes,totalSentBytes);
+    printf("[%7d, %9d] Sent: ",totalSentTimes,totalSentBytes);
     for(int i=0;i<bytesToSend;i++)
       printf("%c",bufSent[i]);
     printf("\n");

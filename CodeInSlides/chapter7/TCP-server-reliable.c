@@ -9,6 +9,41 @@
 #include <string.h>
 #include <unistd.h>
 
+typedef struct {
+  int ID;
+  int len;
+} DataInfo;
+
+void receiveData(int sock, int bytesToReceive)
+{
+  char *buf;
+  buf=malloc(bytesToReceive);
+  int totalReceivedTimes=0;
+  int len=0;
+  int totalReceivedBytes=0;
+  while(1)
+  {
+    if(bytesToReceive-totalReceivedBytes<=0)//All received
+      break;
+
+    memset(buf,0,(bytesToReceive-totalReceivedBytes)*sizeof(buf[0]));
+    len = recv(sock,buf,bytesToReceive-totalReceivedBytes,0);
+    if(len<=0)
+      break;
+
+    printf("[%7d, %9d] Received: ",totalReceivedTimes,totalReceivedBytes);
+    for(int i=0;i<len;i++)
+      printf("%c",buf[i]);
+    printf("\n");
+
+    totalReceivedTimes++;
+    totalReceivedBytes=totalReceivedBytes+len;
+  }
+
+  printf("Received %d B in total!\n",totalReceivedBytes);
+  free(buf);
+}
+
 int main(int argc, char *argv[])
 {
   if(argc!=2)
@@ -54,36 +89,22 @@ int main(int argc, char *argv[])
   }
   printf("accept client %s\n",inet_ntoa(remote_addr.sin_addr));
 
-  char buf[BUFSIZ];
-  int totalReceivedTimes=0;
-  int len=0;
-  int totalReceivedBytes=0;
-  while(1)
+
+  DataInfo dInfo;
+  if(recv(client_sockfd,&dInfo,sizeof(dInfo),0)<=0)
+    return 1;
+
+  printf("Going to receive data(ID:%d, len:%d B)!\n",dInfo.ID,dInfo.len);
+
+  receiveData(client_sockfd,dInfo.len);
+
+  char *doneMsg="Receiver done!";
+  if(send(client_sockfd,doneMsg,strlen(doneMsg),0)<0)
   {
-    // usleep(1000);
-    memset(buf,0,BUFSIZ*sizeof(buf[0]));
-    len = recv(client_sockfd,buf,BUFSIZ,0);
-    if(len<0)
-    {
-      printf("recvfrom failed!\n");
-      break;
-    }
-    if(len==0)
-    {
-      printf("recvfrom done!\n");
-      break;
-    }
-
-    printf("[%7d, %9d] Received: ",totalReceivedTimes,totalReceivedBytes);
-    for(int i=0;i<len;i++)
-      printf("%c",buf[i]);
-    printf("\n");
-
-    totalReceivedTimes++;
-    totalReceivedBytes=totalReceivedBytes+len;
+    perror("TCP send");
+    exit(1);
   }
-
-  printf("Received %d B in total!\n",totalReceivedBytes);
+  
   close(client_sockfd);
   close(server_sockfd);
 
