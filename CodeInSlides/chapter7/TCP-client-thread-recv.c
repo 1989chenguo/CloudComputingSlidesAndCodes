@@ -9,10 +9,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#define REQUEST_PADDING_SIZE 10240
+
 typedef struct {
   int threadID;
   int requestID;
-  char padding[10240];
+  char padding[REQUEST_PADDING_SIZE];
 } RequestInfo;
 
 int sendAllChunk(int sock, char* buf, int chunkSize)
@@ -86,7 +88,7 @@ int main(int argc, char *argv[])
   printf("connected to server %s\n",inet_ntoa(remote_addr.sin_addr));
 
   RequestInfo dInfo;
-  memset(dInfo.padding,'A',10240);
+  memset(dInfo.padding,'A',REQUEST_PADDING_SIZE);
   for(int i=0;i<requestNum;i++) 
   {
     

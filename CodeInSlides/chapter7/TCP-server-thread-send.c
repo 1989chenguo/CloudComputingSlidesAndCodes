@@ -9,10 +9,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#define REQUEST_PADDING_SIZE 10240
+
 typedef struct {
   int threadID;
   int requestID;
-  char padding[10240];
+  char padding[REQUEST_PADDING_SIZE];
 } RequestInfo;
 
 typedef struct {
@@ -66,7 +68,7 @@ void* sendRequest(void* args)
   int sock=para->sock;
   
   RequestInfo dInfo;
-  memset(dInfo.padding,'A',10240);
+  memset(dInfo.padding,'A',REQUEST_PADDING_SIZE);
   for(int i=0;i<sentRequestNum;i++) 
   {
     dInfo.threadID=threadID;
@@ -79,14 +81,13 @@ void* sendRequest(void* args)
 
 int main(int argc, char *argv[])
 {
-  if(argc!=4)
+  if(argc!=3)
   {
     printf("usage: %s port threadNum sentRequestNum\n",argv[0]);
     return 1;
   }
   int port=atoi(argv[1]);
   int threadNum=atoi(argv[2]);
-  int sentRequestNum=atoi(argv[3]);
 
   struct sockaddr_in my_addr; 
   my_addr.sin_family=AF_INET;
@@ -124,12 +125,17 @@ int main(int argc, char *argv[])
   }
   printf("accept client %s\n",inet_ntoa(remote_addr.sin_addr));
 
+  int sentRequestNum;
+  if(recvAllChunk(client_sockfd,(char*)&sentRequestNum,sizeof(sentRequestNum))==-1)//Receive from client that how many requests in total I'm gonna send
+    exit(1);
+  printf("Going to send %d requests in total...\n",sentRequestNum);
+
   pthread_t th[threadNum];
   ThreadParas para[threadNum];
   for(int i=0;i<threadNum;i++)
   {
     para[i].threadID=i;
-    para[i].sentRequestNum=sentRequestNum;
+    para[i].sentRequestNum=sentRequestNum/threadNum;
     para[i].sock=client_sockfd;
     if(pthread_create(&th[i], NULL, sendRequest, &para[i])!=0)
     {

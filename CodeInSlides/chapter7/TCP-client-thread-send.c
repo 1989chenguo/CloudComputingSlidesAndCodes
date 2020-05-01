@@ -9,12 +9,12 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_REQUEST_BUFFER_LEN 100000
+#define REQUEST_PADDING_SIZE 10240
 
 typedef struct {
   int threadID;
   int requestID;
-  char padding[10240];
+  char padding[REQUEST_PADDING_SIZE];
 } RequestInfo;
 
 int sendAllChunk(int sock, char* buf, int chunkSize)
@@ -54,7 +54,7 @@ int recvAllChunk(int sock, char* buf, int chunkSize)
   return 0;//Success
 }
 
-void recvRequest(int sock)
+void recvRequest(int sock, int requestNum)
 {
   char fileName[128]={0};
   sprintf(fileName,"thread%03d.log",0);
@@ -65,7 +65,7 @@ void recvRequest(int sock)
     exit(1);
   }
   int totalRequestNum=0;
-  RequestInfo* dInfo=malloc(MAX_REQUEST_BUFFER_LEN*sizeof(RequestInfo));
+  RequestInfo* dInfo=malloc(requestNum*sizeof(RequestInfo));
   while(1) {
     if(recvAllChunk(sock,(char*)&(dInfo[totalRequestNum]),sizeof(RequestInfo))==-1)
       break;
@@ -74,7 +74,7 @@ void recvRequest(int sock)
   for(int i=0;i<totalRequestNum;i++)
   {
     fprintf(fp,"request \t %09d \t %09d \t ",dInfo[i].threadID, dInfo[i].requestID);
-    for(int j=0;j<10240;j++)
+    for(int j=0;j<REQUEST_PADDING_SIZE;j++)
       fprintf(fp,"%c",dInfo[i].padding[j]);
     fprintf(fp,"\n");
   }
@@ -84,9 +84,9 @@ void recvRequest(int sock)
 
 int main(int argc, char *argv[])
 {
-  if(argc!=3)
+  if(argc!=4)
   {
-    printf("usage: %s destIP port\n",argv[0]);
+    printf("usage: %s destIP port requestNum\n",argv[0]);
     exit(1);
   }
   int client_sockfd;
@@ -101,6 +101,7 @@ int main(int argc, char *argv[])
   remote_addr.sin_addr=server_addr;
   int port=atoi(argv[2]);
   remote_addr.sin_port=htons(port);
+  int requestNum=atoi(argv[3]);
 
   if((client_sockfd=socket(AF_INET,SOCK_STREAM,0))<0)
   {
@@ -115,7 +116,10 @@ int main(int argc, char *argv[])
   }
   printf("connected to server %s\n",inet_ntoa(remote_addr.sin_addr));
 
-  recvRequest(client_sockfd);
+  if(sendAllChunk(client_sockfd,(char*)&requestNum,sizeof(requestNum))==-1)//Tell server that how many requests in total you're gonna send
+    exit(1);
+
+  recvRequest(client_sockfd,requestNum);
 
   close(client_sockfd);
   return 0;

@@ -9,7 +9,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAX_REQUEST_BUFFER_LEN 100000
+#define REQUEST_BUFFER_ALLOC_STEP 10000
+#define REQUEST_PADDING_SIZE 10240
 
 typedef struct {
   int threadID;
@@ -20,7 +21,7 @@ typedef struct {
 typedef struct {
   int threadID;
   int requestID;
-  char padding[10240];
+  char padding[REQUEST_PADDING_SIZE];
 } RequestInfo;
 
 int sendAllChunk(int sock, char* buf, int chunkSize)
@@ -75,16 +76,29 @@ void* recvRequest(void* args)
     exit(1);
   }
   int totalRequestNum=0;
-  RequestInfo* dInfo=malloc(MAX_REQUEST_BUFFER_LEN*sizeof(RequestInfo));
+  int requestBufferLen=REQUEST_BUFFER_ALLOC_STEP;
+  RequestInfo* dInfo=malloc(REQUEST_BUFFER_ALLOC_STEP*sizeof(RequestInfo));
   while(1) {
     if(recvAllChunk(sock,(char*)&(dInfo[totalRequestNum]),sizeof(RequestInfo))==-1)
       break;
     totalRequestNum++;
+    if(totalRequestNum==requestBufferLen)//Expand receive buffer 
+    {
+      printf("(thread %3d) Realloc receive buffer: current len %d, expand %d\n",threadID,requestBufferLen,REQUEST_BUFFER_ALLOC_STEP);
+      requestBufferLen += REQUEST_BUFFER_ALLOC_STEP;
+      RequestInfo* myrealloced_dInfo = realloc(dInfo, requestBufferLen * sizeof(RequestInfo));
+      if (myrealloced_dInfo) {
+        dInfo = myrealloced_dInfo;
+      } else {
+        perror("Expand receive buffer failure");
+        exit(1);
+      }
+    }
   }
   for(int i=0;i<totalRequestNum;i++)
   {
     fprintf(fp,"request \t %09d \t %09d \t ",dInfo[i].threadID, dInfo[i].requestID);
-    for(int j=0;j<10240;j++)
+    for(int j=0;j<REQUEST_PADDING_SIZE;j++)
       fprintf(fp,"%c",dInfo[i].padding[j]);
     fprintf(fp,"\n");
   }
