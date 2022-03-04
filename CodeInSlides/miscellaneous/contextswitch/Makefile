@@ -18,7 +18,7 @@ CFLAGS = -pthread -march=native -O3 -mno-avx -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -
          -W -Wall -Werror
 LDFLAGS = -lrt -lpthread
 
-TARGETS = timectxsw timectxswws timesyscall timetctxsw timetctxsw2
+TARGETS = timectxsw timectxswws timesyscall timetctxsw timectxsw2 timetctxsw2
 
 all: bench
 
