@@ -14,7 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 CC = gcc
-CPPFLAGS = -O1 -pthread
+CPPFLAGS = -O2 -pthread
 
 # the build target executable:
 TARGETS = ATMProblemShow ATMProblemShow-mutex \
@@ -22,7 +22,7 @@ BoundedBuffer-mutex BoundedBuffer-semaphore BoundedBuffer-monitor BoundedBuffer-
 Deadlock PreAssignJob DynamicAssignJob HomoThreads HeteroThreads \
 ConcurrentWget-ThreadPool ConcurrentWget-OnDemand \
 ConcurrentQuickSort-Recursive-broken ConcurrentQuickSort-Recursive ConcurrentQuickSort-Iteration \
-Problems-OoO
+Problems-CompilerOptimization Problems-CPUOoO
 
 all: $(TARGETS)
 
