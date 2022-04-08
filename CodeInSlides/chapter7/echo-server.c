@@ -82,6 +82,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  int inComeConnNum=0;
   while (1) {
     int *client_sockfd=malloc(sizeof(int));
     if((*client_sockfd=accept(server_sockfd,(struct sockaddr *)&remote_addr,&sin_size))<0)
@@ -89,7 +90,8 @@ int main(int argc, char *argv[])
       perror("Error: accept");
       return 1;
     }
-    printf("accept client %s:%d\n",inet_ntoa(remote_addr.sin_addr),ntohs(remote_addr.sin_port));
+    inComeConnNum++;
+    printf("[%d connections accepted] from client %s:%d\n",inComeConnNum,inet_ntoa(remote_addr.sin_addr),ntohs(remote_addr.sin_port));
 
     server(client_sockfd);
 
