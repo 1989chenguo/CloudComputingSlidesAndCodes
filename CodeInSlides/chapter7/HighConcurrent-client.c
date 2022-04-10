@@ -65,6 +65,7 @@ int main(int argc, char *argv[])
 
 
   srand(time(NULL));
+  pthread_t *th=malloc(MAX_CONN_NUM*sizeof(pthread_t));
   for(int i=0;i<MAX_CONN_NUM;i++)
   {
     int *client_sockfd=malloc(sizeof(int));
@@ -83,16 +84,22 @@ int main(int argc, char *argv[])
     socklen_t addressLength = sizeof(localAddress);
     getsockname(*client_sockfd, (struct sockaddr*)&localAddress, &addressLength);
 
-    printf("I'm %s:%d \t connected to server %s:%d\n"
+    printf("[%d connection] I'm %s:%d \t connected to server %s:%d\n"
+      ,i+1
       ,inet_ntoa( localAddress.sin_addr),ntohs(localAddress.sin_port)
       ,inet_ntoa(remote_addr.sin_addr),ntohs(remote_addr.sin_port));
 
-    pthread_t th;
-    if(pthread_create(&th, NULL, client, client_sockfd)!=0)
+    
+    if(pthread_create(&th[i], NULL, client, client_sockfd)!=0)
     {
       perror("pthread_create failed");
       exit(1);
     }
+  }
+
+  for(int i=0;i<MAX_CONN_NUM;i++) {
+    pthread_join(th[i], NULL);
+    printf("[%d connection] Finished\n", i+1);
   }
   
   return 0;

@@ -25,6 +25,8 @@ void* server(void* args) {
     free(consockfdAddr);
     return NULL;
   }
+  // n=write(STDOUT_FILENO, reqbuf, strlen(reqbuf));
+  // fflush(stdout);
   n = write(consockfd, reqbuf, strlen(reqbuf)); /* echo as response*/
   if (n <= 0) {
     perror("Error: write to socket");

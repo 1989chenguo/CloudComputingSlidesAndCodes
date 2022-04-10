@@ -19,7 +19,7 @@ CFLAGS = -O2 -pthread
 # the build target executable:
 TARGETS = UDP-server UDP-client TCP-server TCP-client TCP-server-reliable TCP-client-reliable\
 TCP-server-thread-send TCP-client-thread-send TCP-server-thread-recv TCP-client-thread-recv\
-echo-server echo-client HighConcurrent-client HighConcurrent-normal-server
+echo-server echo-client HighConcurrent-client HighConcurrent-normal-server HighConcurrent-epoll-server
 
 all: $(TARGETS)
 
